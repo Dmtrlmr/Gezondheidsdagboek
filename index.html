@@ -1,0 +1,1189 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Voedingsdagboek</title>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Dagboek">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<link rel="manifest" href="manifest.json">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --groen: #1D9E75;
+  --groen-l: #E1F5EE;
+  --groen-d: #0F6E56;
+  --txt: #111;
+  --muted: #666;
+  --bg: #fff;
+  --bg2: #f5f5f3;
+  --rand: #ddd;
+  --r: 12px;
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bot: env(safe-area-inset-bottom, 0px);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --txt: #f0f0ee;
+    --muted: #999;
+    --bg: #161614;
+    --bg2: #222220;
+    --rand: #444;
+    --groen-l: #0a3d2b;
+  }
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif;
+  background: var(--bg);
+  color: var(--txt);
+  font-size: 16px;
+  height: 100vh;
+  overflow: hidden;
+}
+
+/* ── LAYOUT ── */
+#shell {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  padding-top: var(--safe-top);
+}
+
+#topbar {
+  padding: 12px 16px 10px;
+  border-bottom: 1px solid var(--rand);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-shrink: 0;
+}
+#topbar h1 { font-size: 18px; font-weight: 700; }
+#topbar p  { font-size: 11px; color: var(--muted); margin-top: 1px; }
+
+#synclbl {
+  font-size: 11px;
+  padding: 3px 9px;
+  border-radius: 20px;
+  border: 1px solid var(--rand);
+  background: var(--bg2);
+  color: var(--muted);
+  white-space: nowrap;
+}
+#synclbl.ok  { background: #EAF3DE; border-color: #3B6D11; color: #3B6D11; }
+#synclbl.err { background: #FCEBEB; border-color: #A32D2D; color: #A32D2D; }
+
+#pages {
+  flex: 1;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 18px 16px 12px;
+}
+
+.page { display: none; }
+.page.active { display: block; }
+
+#navbar {
+  display: flex;
+  border-top: 1px solid var(--rand);
+  background: var(--bg);
+  flex-shrink: 0;
+  padding-bottom: var(--safe-bot);
+}
+
+/* ── NAVBAR BUTTONS ── */
+.nb {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 10px 4px 8px;
+  background: none;
+  border: none;
+  color: var(--muted);
+  font-size: 10px;
+  gap: 3px;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  user-select: none;
+}
+.nb svg {
+  width: 24px;
+  height: 24px;
+  stroke: currentColor;
+  fill: none;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.nb.active { color: var(--groen); }
+
+/* ── FORM ELEMENTS ── */
+.lbl {
+  display: block;
+  font-size: 13px;
+  color: var(--muted);
+  margin: 14px 0 5px;
+}
+.lbl:first-child { margin-top: 0; }
+
+input[type="text"],
+input[type="date"],
+input[type="number"],
+input[type="password"],
+select,
+textarea {
+  display: block;
+  width: 100%;
+  padding: 11px 13px;
+  background: var(--bg2);
+  border: 1px solid var(--rand);
+  border-radius: 9px;
+  font-size: 15px;
+  color: var(--txt);
+  font-family: inherit;
+  -webkit-appearance: none;
+  appearance: none;
+}
+textarea { height: 80px; resize: none; }
+input:focus, select:focus, textarea:focus {
+  outline: 2px solid var(--groen);
+  outline-offset: -1px;
+  border-color: var(--groen);
+}
+
+.r2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+/* ── BUTTONS ── */
+.btnG {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  width: 100%;
+  padding: 14px;
+  margin-top: 20px;
+  background: var(--groen);
+  color: #fff;
+  border: none;
+  border-radius: var(--r);
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+}
+.btnG:active { opacity: 0.8; }
+
+.btnS {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 9px 14px;
+  background: var(--bg2);
+  color: var(--txt);
+  border: 1px solid var(--rand);
+  border-radius: 9px;
+  font-size: 13px;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+}
+
+/* ── TOGGLE GRID ── */
+.tgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 6px; }
+.tgrid3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-top: 6px; }
+
+.tg {
+  padding: 10px 8px;
+  border: 1px solid var(--rand);
+  border-radius: 9px;
+  background: var(--bg);
+  color: var(--txt);
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+  width: 100%;
+}
+.tg.aan {
+  background: var(--groen-l);
+  border-color: var(--groen);
+  color: var(--groen-d);
+  font-weight: 500;
+}
+
+/* ── ERNST ── */
+.ernst { display: flex; gap: 6px; margin-top: 6px; }
+.eg {
+  flex: 1;
+  padding: 9px 4px;
+  border: 1px solid var(--rand);
+  border-radius: 9px;
+  background: var(--bg);
+  color: var(--muted);
+  font-size: 13px;
+  text-align: center;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+}
+.eg.aan { font-weight: 700; border-width: 2px; }
+.eg.e1.aan { background: #EAF3DE; border-color: #3B6D11; color: #3B6D11; }
+.eg.e2.aan { background: #FAEEDA; border-color: #854F0B; color: #854F0B; }
+.eg.e3.aan { background: #FAECE7; border-color: #993C1D; color: #993C1D; }
+.eg.e4.aan { background: #FCEBEB; border-color: #A32D2D; color: #A32D2D; }
+.eg.e5.aan { background: #F7C1C1; border-color: #791F1F; color: #791F1F; }
+
+/* ── BRISTOL ── */
+.bgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 6px; }
+.bb {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid var(--rand);
+  border-radius: 9px;
+  background: var(--bg);
+  color: var(--txt);
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+  width: 100%;
+  text-align: left;
+}
+.bb.aan { background: var(--groen-l); border-color: var(--groen); }
+.bb svg { flex-shrink: 0; }
+.bbt { font-size: 12px; font-weight: 600; }
+.bbd { font-size: 11px; color: var(--muted); margin-top: 1px; line-height: 1.3; }
+
+/* ── CARDS ── */
+.card {
+  background: var(--bg);
+  border: 1px solid var(--rand);
+  border-radius: var(--r);
+  padding: 12px 14px;
+  margin-bottom: 8px;
+}
+.ch { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
+.ct { font-weight: 600; font-size: 14px; }
+.cm { font-size: 12px; color: var(--muted); margin-top: 3px; }
+
+.bdg {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 20px;
+  font-weight: 500;
+}
+.bdg-g { background: #EAF3DE; color: #3B6D11; }
+.bdg-a { background: #FAEEDA; color: #854F0B; }
+.bdg-r { background: #FCEBEB; color: #A32D2D; }
+.bdg-t { background: #E1F5EE; color: #0F6E56; }
+.bdg-x { background: var(--bg2); color: var(--muted); border: 1px solid var(--rand); }
+.bdg-p { background: #EEEDFE; color: #3C3489; }
+
+.pil {
+  display: inline-block;
+  background: var(--bg2);
+  border-radius: 20px;
+  padding: 2px 8px;
+  font-size: 12px;
+  margin: 2px 2px 0 0;
+}
+
+/* ── STATS ── */
+.stats { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 16px; }
+.stat { background: var(--bg2); border-radius: 9px; padding: 10px; text-align: center; }
+.sn { font-size: 22px; font-weight: 700; color: var(--groen); }
+.sl { font-size: 10px; color: var(--muted); margin-top: 2px; }
+
+.dkop {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  margin: 16px 0 8px;
+}
+.dkop:first-child { margin-top: 0; }
+
+/* ── HINT ── */
+.hint {
+  font-size: 12px;
+  color: var(--muted);
+  background: var(--bg2);
+  border-radius: 9px;
+  padding: 8px 11px;
+  margin-top: 7px;
+  line-height: 1.5;
+}
+
+/* ── TOAST ── */
+#toast {
+  position: fixed;
+  bottom: calc(70px + var(--safe-bot));
+  left: 50%;
+  transform: translateX(-50%) translateY(10px);
+  background: #111;
+  color: #fff;
+  padding: 8px 18px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 500;
+  opacity: 0;
+  pointer-events: none;
+  transition: all .2s ease;
+  white-space: nowrap;
+  z-index: 999;
+}
+#toast.toon { opacity: 1; transform: translateX(-50%) translateY(0); }
+@media (prefers-color-scheme: dark) {
+  #toast { background: #f0f0ee; color: #111; }
+}
+
+/* ── MEER pagina ── */
+.stitel {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  margin: 20px 0 8px;
+}
+.stitel:first-child { margin-top: 0; }
+
+.egrid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 8px; }
+.eknop {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 14px;
+  background: var(--bg2);
+  border: 1px solid var(--rand);
+  border-radius: var(--r);
+  cursor: pointer;
+  touch-action: manipulation;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--txt);
+  user-select: none;
+}
+.eknop small { font-size: 11px; color: var(--muted); }
+.eknop span.ico { font-size: 26px; }
+
+.favitem {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--rand);
+}
+.favitem:last-child { border-bottom: none; }
+
+/* ── Supabase setup ── */
+.sbcard {
+  background: var(--bg2);
+  border: 1px solid var(--rand);
+  border-radius: var(--r);
+  padding: 14px;
+  margin-bottom: 12px;
+}
+.sbstap {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 10px;
+  align-items: flex-start;
+}
+.sbstap:last-child { margin-bottom: 0; }
+.sbnr {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--groen);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+.sbtxt { font-size: 13px; line-height: 1.5; }
+.sbtxt a { color: var(--groen); }
+.sbtxt code {
+  display: block;
+  font-size: 10px;
+  font-family: monospace;
+  background: var(--bg);
+  border: 1px solid var(--rand);
+  border-radius: 6px;
+  padding: 8px;
+  margin-top: 6px;
+  line-height: 1.6;
+  white-space: pre;
+  overflow-x: auto;
+}
+.verbonden {
+  background: #EAF3DE;
+  border: 1px solid #3B6D11;
+  border-radius: 9px;
+  padding: 10px 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+  font-size: 13px;
+  color: #3B6D11;
+  font-weight: 500;
+}
+
+/* ── AI blok ── */
+.aiblok {
+  background: var(--groen-l);
+  border-radius: var(--r);
+  padding: 14px;
+  margin-bottom: 14px;
+}
+.aibody { font-size: 14px; line-height: 1.7; }
+.aibody p { margin-bottom: 8px; }
+.aibody p:last-child { margin-bottom: 0; }
+
+.leeg { text-align: center; padding: 40px 16px; color: var(--muted); font-size: 14px; line-height: 1.6; }
+</style>
+</head>
+<body>
+
+<div id="shell">
+
+  <!-- Topbar -->
+  <div id="topbar">
+    <div>
+      <h1>🍽 Voedingsdagboek</h1>
+      <p>Maaltijden &amp; klachten — AI detecteert patronen</p>
+    </div>
+    <div id="synclbl">Offline</div>
+  </div>
+
+  <!-- Pagina's -->
+  <div id="pages">
+
+    <!-- MAALTIJD -->
+    <div class="page active" id="p-maaltijd">
+      <div class="r2">
+        <div>
+          <label class="lbl" for="m-datum">Datum</label>
+          <input type="date" id="m-datum">
+        </div>
+        <div>
+          <label class="lbl" for="m-moment">Moment</label>
+          <select id="m-moment">
+            <option>Ontbijt</option>
+            <option>Lunch</option>
+            <option>Avondmaal</option>
+            <option>Tussendoortje</option>
+            <option>Snack</option>
+          </select>
+        </div>
+      </div>
+
+      <label class="lbl" for="m-inhoud">Wat at / dronk je?</label>
+      <textarea id="m-inhoud" placeholder="Bijv. havermout met amandelmelk, skyr met fruit, koffie met volle melk..."></textarea>
+
+      <div id="fav-vak" style="display:none; margin-top:10px;">
+        <div style="font-size:12px;color:var(--muted);margin-bottom:5px;">Favorieten — tik om in te vullen:</div>
+        <div id="fav-chips" style="display:flex;flex-wrap:wrap;gap:6px;"></div>
+      </div>
+
+      <label class="lbl" for="m-ctx">Extra context (optioneel)</label>
+      <input type="text" id="m-ctx" placeholder="Bijv. at snel, restaurant, veel stress...">
+
+      <div style="display:flex;gap:8px;margin-top:20px;">
+        <button class="btnG" style="margin-top:0;flex:1;" onclick="bewaarMaaltijd()">
+          💾 Maaltijd opslaan
+        </button>
+        <button class="btnS" onclick="bewaarFavoriet()" title="Als favoriet opslaan">⭐</button>
+      </div>
+    </div>
+
+    <!-- KLACHTEN -->
+    <div class="page" id="p-klachten">
+      <label class="lbl" for="k-datum">Datum</label>
+      <input type="date" id="k-datum">
+      <div class="hint">Registreer 1x per dag, bij voorkeur 's avonds. De AI zoekt automatisch verbanden met voeding van de dag zelf tot 3 dagen voordien.</div>
+
+      <label class="lbl">Klachten vandaag</label>
+      <div class="tgrid" id="sym-grid">
+        <button class="tg" onclick="togSym(this,'Opgeblazen gevoel')">🫧 Opgeblazen gevoel</button>
+        <button class="tg" onclick="togSym(this,'Krampen')">⚡ Krampen</button>
+        <button class="tg" onclick="togSym(this,'Winderigheid')">💨 Winderigheid</button>
+        <button class="tg" onclick="togSym(this,'Diarree')">💧 Diarree</button>
+        <button class="tg" onclick="togSym(this,'Obstipatie')">🔒 Obstipatie</button>
+        <button class="tg" onclick="togSym(this,'Misselijkheid')">😞 Misselijkheid</button>
+        <button class="tg" onclick="togSym(this,'Maagpijn')">🫀 Maagpijn</button>
+        <button class="tg" onclick="togSym(this,'Reflux')">↑ Reflux</button>
+        <button class="tg" onclick="togSym(this,'Vermoeidheid')">😴 Vermoeidheid</button>
+        <button class="tg" onclick="togSym(this,'Geen klachten')">✅ Geen klachten</button>
+      </div>
+
+      <label class="lbl">Ernst (1 = nauwelijks — 5 = hevig)</label>
+      <div class="ernst">
+        <button class="eg e1" onclick="kiesErnst(this,1)">1</button>
+        <button class="eg e2" onclick="kiesErnst(this,2)">2</button>
+        <button class="eg e3" onclick="kiesErnst(this,3)">3</button>
+        <button class="eg e4" onclick="kiesErnst(this,4)">4</button>
+        <button class="eg e5" onclick="kiesErnst(this,5)">5</button>
+      </div>
+
+      <label class="lbl">Stoelgang — Bristol schaal</label>
+      <div class="bgrid">
+        <button class="bb" onclick="kiesBristol(this,1)">
+          <svg width="34" height="34" viewBox="0 0 34 34"><circle cx="8" cy="26" r="5" fill="#8B4513"/><circle cx="19" cy="22" r="5" fill="#8B4513"/><circle cx="28" cy="13" r="4" fill="#8B4513"/></svg>
+          <div><div class="bbt">Type 1</div><div class="bbd">Harde keutels</div></div>
+        </button>
+        <button class="bb" onclick="kiesBristol(this,2)">
+          <svg width="34" height="34" viewBox="0 0 34 34"><ellipse cx="17" cy="20" rx="13" ry="7" fill="#A0522D"/><circle cx="9" cy="19" r="3.5" fill="#7a3a18"/><circle cx="17" cy="15" r="3" fill="#7a3a18"/><circle cx="25" cy="20" r="3.5" fill="#7a3a18"/></svg>
+          <div><div class="bbt">Type 2</div><div class="bbd">Klonterig</div></div>
+        </button>
+        <button class="bb" onclick="kiesBristol(this,3)">
+          <svg width="34" height="34" viewBox="0 0 34 34"><ellipse cx="17" cy="21" rx="13" ry="7" fill="#CD853F"/><path d="M5 19 Q9 15 13 19 Q17 23 21 19 Q25 15 29 19" stroke="#8B4513" stroke-width="1.5" fill="none"/></svg>
+          <div><div class="bbt">Type 3</div><div class="bbd">Gebarsten</div></div>
+        </button>
+        <button class="bb" onclick="kiesBristol(this,4)">
+          <svg width="34" height="34" viewBox="0 0 34 34"><ellipse cx="17" cy="21" rx="13" ry="7" fill="#D2A679"/></svg>
+          <div><div class="bbt">Type 4</div><div class="bbd">Glad — normaal</div></div>
+        </button>
+        <button class="bb" onclick="kiesBristol(this,5)">
+          <svg width="34" height="34" viewBox="0 0 34 34"><ellipse cx="9" cy="23" rx="7" ry="5" fill="#C4A882"/><ellipse cx="23" cy="21" rx="7" ry="5" fill="#C4A882"/><ellipse cx="17" cy="14" rx="5" ry="4" fill="#C4A882"/></svg>
+          <div><div class="bbt">Type 5</div><div class="bbd">Zachte klonten</div></div>
+        </button>
+        <button class="bb" onclick="kiesBristol(this,6)">
+          <svg width="34" height="34" viewBox="0 0 34 34"><ellipse cx="17" cy="21" rx="12" ry="7" fill="#D4B896"/><ellipse cx="9" cy="19" rx="5" ry="3" fill="#C4A882"/><ellipse cx="25" cy="23" rx="5" ry="3" fill="#C4A882"/></svg>
+          <div><div class="bbt">Type 6</div><div class="bbd">Pluizig, zacht</div></div>
+        </button>
+        <button class="bb" onclick="kiesBristol(this,7)">
+          <svg width="34" height="34" viewBox="0 0 34 34"><ellipse cx="17" cy="23" rx="13" ry="5" fill="#D2B48C" opacity=".5"/><ellipse cx="13" cy="18" rx="8" ry="3" fill="#D2B48C" opacity=".4"/></svg>
+          <div><div class="bbt">Type 7</div><div class="bbd">Waterig</div></div>
+        </button>
+        <button class="bb" onclick="kiesBristol(this,0)">
+          <svg width="34" height="34" viewBox="0 0 34 34"><line x1="8" y1="8" x2="26" y2="26" stroke="#999" stroke-width="2.5" stroke-linecap="round"/><line x1="26" y1="8" x2="8" y2="26" stroke="#999" stroke-width="2.5" stroke-linecap="round"/></svg>
+          <div><div class="bbt">Geen stoelgang</div></div>
+        </button>
+      </div>
+
+      <label class="lbl" for="k-nota">Notitie (optioneel)</label>
+      <input type="text" id="k-nota" placeholder="Bijv. klachten begonnen 's middags, na koffie erger...">
+
+      <button class="btnG" onclick="bewaarKlachten()">💾 Klachten opslaan</button>
+    </div>
+
+    <!-- DAGBOEK -->
+    <div class="page" id="p-dagboek">
+      <div class="stats">
+        <div class="stat"><div class="sn" id="st-m">0</div><div class="sl">Maaltijden</div></div>
+        <div class="stat"><div class="sn" id="st-k">0</div><div class="sl">Klachtdagen</div></div>
+        <div class="stat"><div class="sn" id="st-p">—</div><div class="sl">% klachten</div></div>
+      </div>
+      <div id="daglijst"></div>
+    </div>
+
+    <!-- MEER -->
+    <div class="page" id="p-meer">
+
+      <!-- AI Analyse -->
+      <div class="aiblok">
+        <div style="display:flex;align-items:center;gap:7px;margin-bottom:10px;">
+          <div style="width:8px;height:8px;border-radius:50%;background:var(--groen);flex-shrink:0;"></div>
+          <span style="font-weight:600;font-size:14px;color:var(--groen-d)">AI-patroonanalyse</span>
+        </div>
+        <div id="ai-vak">
+          <p style="font-size:14px;line-height:1.6;margin-bottom:12px;">
+            De AI analyseert jouw voeding en klachten. Het zoekt automatisch de optimale tijdsperiode (zelfde dag tot 3 dagen voordien) en focust op specifieke ingrediënten die mogelijk een rol spelen.
+          </p>
+          <button class="btnS" onclick="runAI()" style="width:100%;justify-content:center;">
+            🤖 Analyseer mijn patronen
+          </button>
+        </div>
+      </div>
+
+      <!-- Export -->
+      <div class="stitel">Export &amp; backup</div>
+      <div class="egrid2">
+        <button class="eknop" onclick="exportExcel()">
+          <span class="ico">📊</span>
+          <span>Excel exporteren</span>
+          <small>Delen met arts</small>
+        </button>
+        <button class="eknop" onclick="exportJSON()">
+          <span class="ico">💾</span>
+          <span>JSON backup</span>
+          <small>Volledige backup</small>
+        </button>
+      </div>
+      <button class="btnS" onclick="document.getElementById('imp-file').click()" style="width:100%;justify-content:center;margin-top:8px;">
+        📥 Backup importeren (JSON)
+      </button>
+      <input type="file" id="imp-file" accept=".json" style="display:none" onchange="importJSON(event)">
+
+      <!-- Favorieten -->
+      <div class="stitel">Favorieten</div>
+      <div id="fav-lijst"><p style="font-size:13px;color:var(--muted)">Nog geen favorieten.</p></div>
+
+      <!-- Supabase -->
+      <div class="stitel">☁️ Online opslag (Supabase)</div>
+      <div id="sb-vak"></div>
+
+    </div>
+  </div>
+
+  <!-- Navbar -->
+  <div id="navbar">
+    <button class="nb active" onclick="gaNaar('maaltijd', this)">
+      <svg viewBox="0 0 24 24"><path d="M3 2v7c0 1.1.9 2 2 2h4v13"/><path d="M7 2v20"/><path d="M21 15V2a5 5 0 0 0-5 5v6h3.5"/></svg>
+      Maaltijd
+    </button>
+    <button class="nb" onclick="gaNaar('klachten', this)">
+      <svg viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+      Klachten
+    </button>
+    <button class="nb" onclick="gaNaar('dagboek', this)">
+      <svg viewBox="0 0 24 24"><rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+      Dagboek
+    </button>
+    <button class="nb" onclick="gaNaar('meer', this)">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg>
+      Meer
+    </button>
+  </div>
+
+</div>
+
+<div id="toast"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script>
+// ═══════════════════════════════════════════════════════
+// DATA
+// ═══════════════════════════════════════════════════════
+let M = JSON.parse(localStorage.getItem('db_m') || '[]');  // maaltijden
+let K = JSON.parse(localStorage.getItem('db_k') || '[]');  // klachten
+let F = JSON.parse(localStorage.getItem('db_f') || '[]');  // favorieten
+let SU = localStorage.getItem('db_su') || '';              // supabase url
+let SK = localStorage.getItem('db_sk') || '';              // supabase key
+
+let selSym = [], selErnst = 0, selBristol = null;
+
+function opslaan() {
+  localStorage.setItem('db_m', JSON.stringify(M));
+  localStorage.setItem('db_k', JSON.stringify(K));
+  localStorage.setItem('db_f', JSON.stringify(F));
+}
+
+// ═══════════════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════════════
+function vandaag() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+document.getElementById('m-datum').value = vandaag();
+document.getElementById('k-datum').value = vandaag();
+renderFavChips();
+if (SU && SK) sbSync();
+
+// ═══════════════════════════════════════════════════════
+// NAVIGATIE
+// ═══════════════════════════════════════════════════════
+function gaNaar(naam, btn) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nb').forEach(b => b.classList.remove('active'));
+  document.getElementById('p-' + naam).classList.add('active');
+  btn.classList.add('active');
+  document.getElementById('pages').scrollTop = 0;
+  if (naam === 'dagboek') renderDagboek();
+  if (naam === 'meer') { renderFavLijst(); renderSB(); }
+}
+
+// ═══════════════════════════════════════════════════════
+// TOAST
+// ═══════════════════════════════════════════════════════
+function toast(bericht) {
+  const t = document.getElementById('toast');
+  t.textContent = bericht;
+  t.classList.add('toon');
+  setTimeout(() => t.classList.remove('toon'), 2500);
+}
+
+// ═══════════════════════════════════════════════════════
+// KLACHTEN INVOER
+// ═══════════════════════════════════════════════════════
+function togSym(btn, naam) {
+  btn.classList.toggle('aan');
+  if (btn.classList.contains('aan')) {
+    selSym.push(naam);
+  } else {
+    selSym = selSym.filter(s => s !== naam);
+  }
+}
+
+function kiesErnst(btn, n) {
+  selErnst = n;
+  document.querySelectorAll('.eg').forEach((b, i) => {
+    b.classList.toggle('aan', i + 1 === n);
+  });
+}
+
+function kiesBristol(btn, n) {
+  document.querySelectorAll('.bb').forEach(b => b.classList.remove('aan'));
+  btn.classList.add('aan');
+  selBristol = n;
+}
+
+// ═══════════════════════════════════════════════════════
+// FAVORIETEN
+// ═══════════════════════════════════════════════════════
+function renderFavChips() {
+  const vak = document.getElementById('fav-vak');
+  const chips = document.getElementById('fav-chips');
+  if (!F.length) { vak.style.display = 'none'; return; }
+  vak.style.display = 'block';
+  chips.innerHTML = F.map((f, i) =>
+    `<button class="btnS" style="font-size:12px;padding:5px 10px" onclick="gebruikFav(${i})">⭐ ${f.naam}</button>`
+  ).join('');
+}
+
+function gebruikFav(i) {
+  document.getElementById('m-inhoud').value = F[i].inhoud;
+  document.getElementById('m-moment').value = F[i].moment;
+  toast('Favoriet ingevuld');
+}
+
+async function bewaarFavoriet() {
+  const inhoud = document.getElementById('m-inhoud').value.trim();
+  if (!inhoud) { toast('Vul eerst een maaltijd in.'); return; }
+  const naam = prompt('Naam voor dit favoriet?', inhoud.slice(0, 40));
+  if (!naam) return;
+  const rij = { id: 'f' + Date.now(), naam, inhoud, moment: document.getElementById('m-moment').value };
+  F.push(rij);
+  opslaan();
+  renderFavChips();
+  await sbUpsert('favorieten', rij);
+  toast('⭐ Favoriet opgeslagen');
+}
+
+function renderFavLijst() {
+  const el = document.getElementById('fav-lijst');
+  if (!F.length) {
+    el.innerHTML = '<p style="font-size:13px;color:var(--muted)">Nog geen favorieten. Voeg toe via de ⭐ knop op de maaltijdpagina.</p>';
+    return;
+  }
+  el.innerHTML = F.map((f, i) =>
+    `<div class="favitem">
+      <div style="flex:1">
+        <div style="font-size:14px">⭐ ${f.naam}</div>
+        <div style="font-size:11px;color:var(--muted)">${f.moment} — ${f.inhoud.slice(0,50)}${f.inhoud.length>50?'…':''}</div>
+      </div>
+      <button class="btnS" style="padding:6px 10px;font-size:12px;color:#A32D2D;border-color:#A32D2D" onclick="verwijderFav(${i})">🗑</button>
+    </div>`
+  ).join('');
+}
+
+async function verwijderFav(i) {
+  if (!confirm('Favoriet verwijderen?')) return;
+  const id = F[i].id;
+  F.splice(i, 1);
+  opslaan();
+  renderFavLijst();
+  renderFavChips();
+  if (SU && SK) await sbFetch('favorieten?id=eq.' + id, 'DELETE');
+}
+
+// ═══════════════════════════════════════════════════════
+// OPSLAAN
+// ═══════════════════════════════════════════════════════
+async function bewaarMaaltijd() {
+  const inhoud = document.getElementById('m-inhoud').value.trim();
+  if (!inhoud) { toast('Vul in wat je at of dronk.'); return; }
+  const rij = {
+    id: 'm' + Date.now(),
+    datum: document.getElementById('m-datum').value,
+    moment: document.getElementById('m-moment').value,
+    inhoud: inhoud,
+    context: document.getElementById('m-ctx').value.trim()
+  };
+  M.unshift(rij);
+  opslaan();
+  document.getElementById('m-inhoud').value = '';
+  document.getElementById('m-ctx').value = '';
+  await sbUpsert('maaltijden', rij);
+  toast('✓ Maaltijd opgeslagen');
+}
+
+async function bewaarKlachten() {
+  if (!selSym.length) { toast('Selecteer minstens één klacht.'); return; }
+  const datum = document.getElementById('k-datum').value;
+  // Verwijder bestaande registratie voor die datum
+  const oud = K.find(k => k.datum === datum);
+  if (oud && SU && SK) await sbFetch('klachten?id=eq.' + oud.id, 'DELETE');
+  K = K.filter(k => k.datum !== datum);
+  const rij = {
+    id: 'k' + Date.now(),
+    datum: datum,
+    symptomen: selSym.join(','),
+    ernst: selErnst,
+    bristol: selBristol,
+    notitie: document.getElementById('k-nota').value.trim()
+  };
+  K.unshift(rij);
+  opslaan();
+  // Reset
+  selSym = []; selErnst = 0; selBristol = null;
+  document.querySelectorAll('.tg, .eg, .bb').forEach(b => b.classList.remove('aan'));
+  document.getElementById('k-nota').value = '';
+  await sbUpsert('klachten', rij);
+  toast('✓ Klachten opgeslagen');
+}
+
+// ═══════════════════════════════════════════════════════
+// DAGBOEK
+// ═══════════════════════════════════════════════════════
+function fmtDatum(s) {
+  return new Date(s + 'T12:00:00').toLocaleDateString('nl-BE', {
+    weekday: 'long', day: 'numeric', month: 'long'
+  });
+}
+
+function getSyms(k) {
+  return typeof k.symptomen === 'string' ? k.symptomen.split(',') : (k.symptomen || []);
+}
+
+function renderDagboek() {
+  const metK = K.filter(k => !getSyms(k).includes('Geen klachten'));
+  document.getElementById('st-m').textContent = M.length;
+  document.getElementById('st-k').textContent = metK.length;
+  document.getElementById('st-p').textContent = K.length
+    ? Math.round(metK.length / K.length * 100) + '%' : '—';
+
+  const el = document.getElementById('daglijst');
+  const datums = [...new Set(M.map(m => m.datum).concat(K.map(k => k.datum)))].sort().reverse();
+
+  if (!datums.length) {
+    el.innerHTML = '<div class="leeg">Nog geen registraties.<br>Voeg maaltijden en klachten toe.</div>';
+    return;
+  }
+
+  const volgorde = ['Ontbijt', 'Tussendoortje', 'Lunch', 'Avondmaal', 'Snack'];
+  el.innerHTML = datums.map(d => {
+    const dm = M.filter(m => m.datum === d).sort((a, b) =>
+      volgorde.indexOf(a.moment) - volgorde.indexOf(b.moment)
+    );
+    const dk = K.find(k => k.datum === d);
+    let h = `<div class="dkop">${fmtDatum(d)}</div>`;
+
+    dm.forEach(m => {
+      h += `<div class="card">
+        <div class="ch"><span class="ct">🍴 ${m.moment}</span><span class="bdg bdg-x">maaltijd</span></div>
+        <div style="font-size:14px">${m.inhoud}</div>
+        ${m.context ? `<div class="cm">${m.context}</div>` : ''}
+      </div>`;
+    });
+
+    if (dk) {
+      const ss = getSyms(dk);
+      const geen = ss.includes('Geen klachten');
+      const kleur = geen ? 'bdg-g' : dk.ernst >= 4 ? 'bdg-r' : dk.ernst >= 2 ? 'bdg-a' : 'bdg-t';
+      const tekst = geen ? 'Geen klachten' : `Ernst ${dk.ernst}/5`;
+      const lrand = geen ? '#1D9E75' : dk.ernst >= 4 ? '#E24B4A' : dk.ernst >= 2 ? '#EF9F27' : '#1D9E75';
+      const brl = dk.bristol != null
+        ? dk.bristol === 0 ? 'Geen stoelgang' : `Bristol type ${dk.bristol}`
+        : '';
+      h += `<div class="card" style="border-left:3px solid ${lrand}">
+        <div class="ch"><span class="ct">⚡ Klachten</span><span class="bdg ${kleur}">${tekst}</span></div>
+        ${!geen ? `<div style="margin:4px 0">${ss.map(s => `<span class="pil">${s}</span>`).join('')}</div>` : ''}
+        ${brl ? `<div class="cm">${brl}</div>` : ''}
+        ${dk.notitie ? `<div class="cm">${dk.notitie}</div>` : ''}
+      </div>`;
+    }
+    return h;
+  }).join('');
+}
+
+// ═══════════════════════════════════════════════════════
+// AI ANALYSE
+// ═══════════════════════════════════════════════════════
+async function runAI() {
+  const vak = document.getElementById('ai-vak');
+  vak.innerHTML = '<p style="font-size:14px;color:var(--groen-d);font-style:italic">⏳ Analyseren... even geduld.</p>';
+
+  // Bouw context: voor elke klachtendag, voeding van dag zelf + 3 dagen terug
+  const context = K.slice(0, 25).map(k => {
+    const ss = getSyms(k);
+    const d = new Date(k.datum + 'T12:00:00');
+    const fmt = n => { const x = new Date(d); x.setDate(x.getDate() - n); return x.toISOString().slice(0, 10); };
+    const voeding = n => {
+      const dt = n === 0 ? k.datum : fmt(n);
+      const rijen = M.filter(m => m.datum === dt).map(m => `${m.moment}: ${m.inhoud}${m.context ? ' (' + m.context + ')' : ''}`);
+      return rijen.length ? rijen.join(' | ') : 'niet geregistreerd';
+    };
+    const brl = k.bristol != null ? k.bristol === 0 ? 'geen stoelgang' : `Bristol type ${k.bristol}` : 'onbekend';
+    return `Datum: ${k.datum}
+Klachten: ${ss.join(', ')} | Ernst: ${k.ernst || '?'}/5 | Stoelgang: ${brl}${k.notitie ? ' | Notitie: ' + k.notitie : ''}
+Voeding zelfde dag: ${voeding(0)}
+Voeding 1 dag voordien: ${voeding(1)}
+Voeding 2 dagen voordien: ${voeding(2)}
+Voeding 3 dagen voordien: ${voeding(3)}`;
+  }).join('\n\n');
+
+  const klachtenvrij = K.filter(k => getSyms(k).includes('Geen klachten')).slice(0, 10).map(k => {
+    const voeding = M.filter(m => m.datum === k.datum).map(m => `${m.moment}: ${m.inhoud}`).join(' | ') || 'niet geregistreerd';
+    return `Datum: ${k.datum} — Geen klachten — Voeding: ${voeding}`;
+  }).join('\n');
+
+  const prompt = `Analyseer dit voedingsdagboek op verbanden tussen voeding en spijsverteringsklachten.
+
+DAGEN MET KLACHTEN:
+${context || 'Nog geen klachtendata.'}
+
+KLACHTENVRIJE DAGEN (ter vergelijking):
+${klachtenvrij || 'Nog geen klachtenvrije dagen.'}
+
+Instructies:
+- Zoek patronen in specifieke ingrediënten (bijv. lactose in skyr/melk, gluten, koffie, alcohol)
+- Bepaal zelf welke tijdsperiode (zelfde dag / dag voordien / 2-3 dagen) het sterkste verband toont
+- Vergelijk klachtdagen met klachtenvrije dagen
+- Geef concrete, bruikbare observaties
+- Schrijf in vloeiend Nederlands, geen opsommingstekens of markdown-opmaak, gewone alinea's
+- Wees concreet over welke voedingsmiddelen verdacht zijn en waarom`;
+
+  try {
+    const resp = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 1200,
+        system: 'Je bent een expert in voedingspatronen en spijsverteringsproblemen. Je analyseert dagboekdata en identificeert concrete verbanden tussen specifieke voedingsmiddelen en klachten. Je schrijft in vloeiend Nederlands zonder markdown of opsommingstekens.',
+        messages: [{ role: 'user', content: prompt }]
+      })
+    });
+    const data = await resp.json();
+    const tekst = data.content?.find(b => b.type === 'text')?.text || 'Geen resultaat ontvangen.';
+    vak.innerHTML = `
+      <div class="aibody">
+        ${tekst.split('\n').filter(l => l.trim()).map(l => `<p>${l}</p>`).join('')}
+      </div>
+      <button class="btnS" style="margin-top:12px;width:100%;justify-content:center" onclick="runAI()">
+        🔄 Heranalyseer
+      </button>`;
+  } catch (e) {
+    vak.innerHTML = `<p style="font-size:14px;color:#A32D2D">Fout bij analyse: ${e.message}</p>
+      <button class="btnS" style="margin-top:8px" onclick="runAI()">Opnieuw proberen</button>`;
+  }
+}
+
+// ═══════════════════════════════════════════════════════
+// EXPORT
+// ═══════════════════════════════════════════════════════
+function exportExcel() {
+  if (typeof XLSX === 'undefined') { toast('Even wachten, bibliotheek laadt nog...'); return; }
+  const wb = XLSX.utils.book_new();
+
+  // Maaltijden
+  const mRijen = [['Datum', 'Moment', 'Wat gegeten/gedronken', 'Context'],
+    ...M.map(m => [m.datum, m.moment, m.inhoud, m.context || ''])];
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(mRijen), 'Maaltijden');
+
+  // Klachten
+  const kRijen = [['Datum', 'Klachten', 'Ernst (1-5)', 'Bristol stoelgang', 'Notitie'],
+    ...K.map(k => [k.datum, getSyms(k).join(', '), k.ernst || '', k.bristol != null ? k.bristol === 0 ? 'Geen stoelgang' : `Type ${k.bristol}` : '', k.notitie || ''])];
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(kRijen), 'Klachten');
+
+  // Overzicht per dag
+  const allDatums = [...new Set([...M.map(m => m.datum), ...K.map(k => k.datum)])].sort();
+  const oRijen = [['Datum', 'Maaltijden (samenvatting)', 'Klachten', 'Ernst', 'Bristol', 'Notitie'],
+    ...allDatums.map(d => {
+      const dagM = M.filter(m => m.datum === d).map(m => `[${m.moment}] ${m.inhoud}`).join(' | ');
+      const dagK = K.find(k => k.datum === d);
+      return [
+        d,
+        dagM || '',
+        dagK ? getSyms(dagK).join(', ') : '',
+        dagK ? dagK.ernst || '' : '',
+        dagK && dagK.bristol != null ? dagK.bristol === 0 ? 'Geen' : `Type ${dagK.bristol}` : '',
+        dagK ? dagK.notitie || '' : ''
+      ];
+    })];
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(oRijen), 'Overzicht per dag');
+
+  XLSX.writeFile(wb, `voedingsdagboek_${vandaag()}.xlsx`);
+  toast('✓ Excel gedownload');
+}
+
+function exportJSON() {
+  const data = JSON.stringify({ M, K, F, versie: 2 }, null, 2);
+  const blob = new Blob([data], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `voedingsdagboek_backup_${vandaag()}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+  toast('✓ Backup gedownload');
+}
+
+function importJSON(e) {
+  const bestand = e.target.files[0];
+  if (!bestand) return;
+  const lezer = new FileReader();
+  lezer.onload = ev => {
+    try {
+      const d = JSON.parse(ev.target.result);
+      const nm = (d.M || d.maaltijden || []).length;
+      const nk = (d.K || d.klachten || []).length;
+      if (!confirm(`Backup importeren?\n${nm} maaltijden, ${nk} klachtdagen.\n\nDit vervangt alle huidige data.`)) return;
+      M = d.M || d.maaltijden || [];
+      K = d.K || d.klachten || [];
+      F = d.F || d.favorieten || [];
+      opslaan();
+      renderFavChips();
+      toast('✓ Backup hersteld');
+    } catch (err) {
+      toast('Fout: ongeldig JSON-bestand.');
+    }
+  };
+  lezer.readAsText(bestand);
+  e.target.value = '';
+}
+
+// ═══════════════════════════════════════════════════════
+// SUPABASE
+// ═══════════════════════════════════════════════════════
+async function sbFetch(pad, methode = 'GET', body = null) {
+  if (!SU || !SK) return null;
+  const opties = {
+    method: methode,
+    headers: {
+      'Content-Type': 'application/json',
+      'apikey': SK,
+      'Authorization': 'Bearer ' + SK,
+      'Prefer': 'return=minimal'
+    }
+  };
+  if (body) opties.body = JSON.stringify(body);
+  try {
+    const r = await fetch(SU + '/rest/v1/' + pad, opties);
+    const tekst = await r.text();
+    return tekst ? JSON.parse(tekst) : true;
+  } catch (e) {
+    return null;
+  }
+}
+
+async function sbUpsert(tabel, rij) {
+  if (!SU || !SK) return;
+  await sbFetch(tabel + '?on_conflict=id', 'POST', rij);
+  setSyncLabel('ok');
+}
+
+function setSyncLabel(staat) {
+  const lbl = document.getElementById('synclbl');
+  lbl.className = staat === 'ok' ? 'ok' : staat === 'err' ? 'err' : '';
+  lbl.textContent = staat === 'ok' ? '☁️ Online' : staat === 'err' ? '⚠️ Fout' : '📵 Offline';
+}
+
+async function sbSync() {
+  if (!SU || !SK) { setSyncLabel(''); return; }
+  document.getElementById('synclbl').textContent = '⏳ Syncing...';
+  document.getElementById('synclbl').className = '';
+  const [rm, rk, rf] = await Promise.all([
+    sbFetch('maaltijden?select=*&order=datum.desc'),
+    sbFetch('klachten?select=*&order=datum.desc'),
+    sbFetch('favorieten?select=*')
+  ]);
+  if (rm === null) { setSyncLabel('err'); return; }
+  M = rm || []; K = rk || []; F = rf || [];
+  opslaan();
+  renderFavChips();
+  setSyncLabel('ok');
+}
+
+function renderSB() {
+  const el = document.getElementById('sb-vak');
+  if (SU && SK) {
+    el.innerHTML = `
+      <div class="verbonden">✅ Verbonden met Supabase — data wordt automatisch opgeslagen</div>
+      <div style="display:flex;gap:8px;">
+        <button class="btnS" onclick="sbSync()" style="flex:1;justify-content:center">🔄 Nu synchroniseren</button>
+        <button class="btnS" onclick="sbOntkoppel()" style="color:#A32D2D;border-color:#A32D2D;">❌ Ontkoppelen</button>
+      </div>`;
+    return;
+  }
+  el.innerHTML = `
+    <div class="sbcard">
+      <div class="sbstap">
+        <div class="sbnr">1</div>
+        <div class="sbtxt">Ga naar <a href="https://supabase.com" target="_blank">supabase.com</a>, maak een gratis account aan en maak een nieuw project. Kies als regio <strong>West Europe</strong>.</div>
+      </div>
+      <div class="sbstap">
+        <div class="sbnr">2</div>
+        <div class="sbtxt">Ga in het project naar <strong>SQL Editor</strong> (linkerzijbalk), plak onderstaande code en klik op <strong>Run</strong>:<code>CREATE TABLE maaltijden (id text primary key, datum text, moment text, inhoud text, context text);
+CREATE TABLE klachten (id text primary key, datum text, symptomen text, ernst int, bristol int, notitie text);
+CREATE TABLE favorieten (id text primary key, naam text, inhoud text, moment text);
+ALTER TABLE maaltijden ENABLE ROW LEVEL SECURITY;
+ALTER TABLE klachten ENABLE ROW LEVEL SECURITY;
+ALTER TABLE favorieten ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "open" ON maaltijden FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "open" ON klachten FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "open" ON favorieten FOR ALL USING (true) WITH CHECK (true);</code></div>
+      </div>
+      <div class="sbstap">
+        <div class="sbnr">3</div>
+        <div class="sbtxt">Ga naar <strong>Project Settings → API Keys → Legacy anon, service_role API keys</strong>. Kopieer de <strong>anon public</strong> key.</div>
+      </div>
+      <div class="sbstap">
+        <div class="sbnr">4</div>
+        <div class="sbtxt">De Project URL is: <strong>https://yfeqybikjrcllwkxjguk.supabase.co</strong><br>Plak hieronder de anon key en klik Verbinden.</div>
+      </div>
+    </div>
+    <label class="lbl" for="sb-url">Project URL</label>
+    <input type="text" id="sb-url" value="https://yfeqybikjrcllwkxjguk.supabase.co" readonly style="color:var(--muted)">
+    <label class="lbl" for="sb-key">Anon public key</label>
+    <input type="password" id="sb-key" placeholder="eyJhbGciOi...">
+    <button class="btnG" onclick="sbVerbind()">☁️ Verbinden &amp; synchroniseren</button>`;
+}
+
+async function sbVerbind() {
+  const url = document.getElementById('sb-url').value.trim().replace(/\/$/, '');
+  const key = document.getElementById('sb-key').value.trim();
+  if (!url || !key) { toast('Vul de anon key in.'); return; }
+  SU = url; SK = key;
+  localStorage.setItem('db_su', SU);
+  localStorage.setItem('db_sk', SK);
+  toast('Verbinden...');
+  await sbSync();
+  renderSB();
+}
+
+function sbOntkoppel() {
+  if (!confirm('Ontkoppelen van Supabase?\nLokale data blijft bewaard op dit apparaat.')) return;
+  SU = ''; SK = '';
+  localStorage.removeItem('db_su');
+  localStorage.removeItem('db_sk');
+  setSyncLabel('');
+  renderSB();
+}
+</script>
+</body>
+</html>
