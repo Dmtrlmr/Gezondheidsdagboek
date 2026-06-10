@@ -4,427 +4,271 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <title>Voedingsdagboek</title>
-  <meta name="description" content="Maaltijden en klachten bijhouden, AI detecteert patronen" />
-
-  <!-- PWA -->
   <link rel="manifest" href="manifest.json" />
   <meta name="theme-color" content="#1D9E75" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="Dagboek" />
   <link rel="apple-touch-icon" href="icons/icon-192.png" />
-
-  <!-- Icons -->
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css" />
-
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@2.44.0/tabler-icons.min.css" />
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
     :root {
-      --teal: #1D9E75;
-      --teal-light: #E1F5EE;
-      --teal-dark: #0F6E56;
-      --text: #1a1a1a;
-      --text-muted: #6b7280;
-      --bg: #ffffff;
-      --bg-secondary: #f8f8f6;
-      --border: rgba(0,0,0,0.12);
-      --border-strong: rgba(0,0,0,0.22);
-      --radius: 12px;
-      --radius-sm: 8px;
-      --safe-top: env(safe-area-inset-top, 0px);
-      --safe-bottom: env(safe-area-inset-bottom, 0px);
+      --teal:#1D9E75; --teal-light:#E1F5EE; --teal-dark:#0F6E56;
+      --text:#1a1a1a; --text-muted:#6b7280;
+      --bg:#ffffff; --bg2:#f8f8f6; --bg3:#f0f0ee;
+      --border:rgba(0,0,0,0.12); --border2:rgba(0,0,0,0.22);
+      --r:12px; --r-sm:8px;
+      --safe-top:env(safe-area-inset-top,0px);
+      --safe-bot:env(safe-area-inset-bottom,0px);
     }
-
-    @media (prefers-color-scheme: dark) {
-      :root {
-        --text: #f0f0ee;
-        --text-muted: #9ca3af;
-        --bg: #161614;
-        --bg-secondary: #222220;
-        --border: rgba(255,255,255,0.1);
-        --border-strong: rgba(255,255,255,0.2);
-        --teal-light: #0a3d2b;
-      }
+    @media(prefers-color-scheme:dark){
+      :root{--text:#f0f0ee;--text-muted:#9ca3af;--bg:#161614;--bg2:#222220;--bg3:#2a2a28;--border:rgba(255,255,255,0.1);--border2:rgba(255,255,255,0.2);--teal-light:#0a3d2b;}
     }
-
-    html, body {
-      height: 100%;
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-      background: var(--bg);
-      color: var(--text);
-      font-size: 16px;
-      line-height: 1.5;
-      overflow: hidden;
-    }
-
-    .app {
-      display: flex;
-      flex-direction: column;
-      height: 100%;
-      padding-top: var(--safe-top);
-    }
-
-    /* Header */
-    .header {
-      padding: 16px 20px 12px;
-      border-bottom: 0.5px solid var(--border);
-      flex-shrink: 0;
-    }
-    .header h1 { font-size: 20px; font-weight: 600; }
-    .header p { font-size: 13px; color: var(--text-muted); margin-top: 2px; }
-
-    /* Tab bar — bottom iOS style */
-    .tabbar {
-      display: flex;
-      border-top: 0.5px solid var(--border);
-      background: var(--bg);
-      padding-bottom: var(--safe-bottom);
-      flex-shrink: 0;
-    }
-    .tab-btn {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      padding: 10px 4px 8px;
-      border: none;
-      background: none;
-      cursor: pointer;
-      color: var(--text-muted);
-      font-size: 10px;
-      gap: 3px;
-      -webkit-tap-highlight-color: transparent;
-    }
-    .tab-btn i { font-size: 22px; }
-    .tab-btn.active { color: var(--teal); }
-
-    /* Scrollable content area */
-    .content {
-      flex: 1;
-      overflow-y: auto;
-      -webkit-overflow-scrolling: touch;
-      padding: 20px;
-    }
-
-    .screen { display: none; }
-    .screen.active { display: block; }
-
-    /* Form elements */
-    label.lbl {
-      display: block;
-      font-size: 13px;
-      color: var(--text-muted);
-      margin-bottom: 6px;
-      margin-top: 16px;
-    }
-    label.lbl:first-child { margin-top: 0; }
-
-    input[type=text], input[type=date], select, textarea {
-      width: 100%;
-      background: var(--bg-secondary);
-      border: 0.5px solid var(--border-strong);
-      border-radius: var(--radius-sm);
-      padding: 11px 14px;
-      font-size: 15px;
-      color: var(--text);
-      font-family: inherit;
-      appearance: none;
-      -webkit-appearance: none;
-    }
-    textarea { height: 80px; resize: none; }
-    input:focus, select:focus, textarea:focus {
-      outline: none;
-      border-color: var(--teal);
-    }
-
-    .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-
-    /* Symptom buttons */
-    .sym-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 8px;
-      margin-top: 6px;
-    }
-    .sym-btn {
-      border: 0.5px solid var(--border-strong);
-      border-radius: var(--radius-sm);
-      padding: 10px 12px;
-      font-size: 14px;
-      cursor: pointer;
-      background: var(--bg);
-      color: var(--text);
-      text-align: left;
-      display: flex;
-      align-items: center;
-      gap: 7px;
-      -webkit-tap-highlight-color: transparent;
-    }
-    .sym-btn i { font-size: 16px; color: var(--text-muted); }
-    .sym-btn.sel {
-      background: var(--teal-light);
-      border-color: var(--teal);
-      color: var(--teal-dark);
-    }
-    .sym-btn.sel i { color: var(--teal); }
-
+    html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);font-size:16px;line-height:1.5;overflow:hidden;}
+    .app{display:flex;flex-direction:column;height:100%;padding-top:var(--safe-top);}
+    .header{padding:14px 20px 10px;border-bottom:0.5px solid var(--border);flex-shrink:0;display:flex;align-items:center;justify-content:space-between;}
+    .header-left h1{font-size:19px;font-weight:600;}
+    .header-left p{font-size:12px;color:var(--text-muted);margin-top:1px;}
+    .sync-badge{font-size:11px;padding:4px 9px;border-radius:20px;font-weight:500;background:var(--bg2);border:0.5px solid var(--border2);color:var(--text-muted);display:flex;align-items:center;gap:4px;white-space:nowrap;}
+    .sync-badge.ok{background:#EAF3DE;border-color:#3B6D11;color:#3B6D11;}
+    .sync-badge.err{background:#FCEBEB;border-color:#A32D2D;color:#A32D2D;}
+    .sync-badge.busy{background:#FAEEDA;border-color:#854F0B;color:#854F0B;}
+    .tabbar{display:flex;border-top:0.5px solid var(--border);background:var(--bg);padding-bottom:var(--safe-bot);flex-shrink:0;}
+    .tab-btn{flex:1;display:flex;flex-direction:column;align-items:center;padding:9px 2px 7px;border:none;background:none;cursor:pointer;color:var(--text-muted);font-size:9px;gap:2px;-webkit-tap-highlight-color:transparent;}
+    .tab-btn i{font-size:21px;}
+    .tab-btn.active{color:var(--teal);}
+    .content{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:18px 18px 8px;}
+    .screen{display:none;} .screen.active{display:block;}
+    label.lbl{display:block;font-size:13px;color:var(--text-muted);margin-bottom:5px;margin-top:14px;}
+    label.lbl:first-child{margin-top:0;}
+    input[type=text],input[type=date],input[type=number],input[type=password],select,textarea{width:100%;background:var(--bg2);border:0.5px solid var(--border2);border-radius:var(--r-sm);padding:10px 13px;font-size:15px;color:var(--text);font-family:inherit;appearance:none;-webkit-appearance:none;}
+    textarea{height:72px;resize:none;}
+    input:focus,select:focus,textarea:focus{outline:none;border-color:var(--teal);}
+    .row2{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+    /* Toggle buttons (symptomen, alcohol type) */
+    .sym-grid{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-top:5px;}
+    .tog-btn{border:0.5px solid var(--border2);border-radius:var(--r-sm);padding:9px 11px;font-size:13px;cursor:pointer;background:var(--bg);color:var(--text);text-align:left;display:flex;align-items:center;gap:6px;-webkit-tap-highlight-color:transparent;width:100%;}
+    .tog-btn.sel{background:var(--teal-light);border-color:var(--teal);color:var(--teal-dark);}
     /* Severity */
-    .sev-row { display: flex; gap: 6px; margin-top: 6px; }
-    .sev-btn {
-      flex: 1;
-      border: 0.5px solid var(--border-strong);
-      border-radius: var(--radius-sm);
-      padding: 8px 4px;
-      font-size: 12px;
-      cursor: pointer;
-      background: var(--bg);
-      color: var(--text-muted);
-      text-align: center;
-      -webkit-tap-highlight-color: transparent;
-    }
-    .sev-btn.on { font-weight: 600; }
-    .sev-btn.s1.on { background: #EAF3DE; border-color: #3B6D11; color: #3B6D11; }
-    .sev-btn.s2.on { background: #FAEEDA; border-color: #854F0B; color: #854F0B; }
-    .sev-btn.s3.on { background: #FAECE7; border-color: #993C1D; color: #993C1D; }
-    .sev-btn.s4.on { background: #FCEBEB; border-color: #A32D2D; color: #A32D2D; }
-    .sev-btn.s5.on { background: #F7C1C1; border-color: #791F1F; color: #791F1F; }
-
-    /* Primary button */
-    .btn-primary {
-      width: 100%;
-      background: var(--teal);
-      color: white;
-      border: none;
-      border-radius: var(--radius);
-      padding: 14px;
-      font-size: 16px;
-      font-weight: 600;
-      cursor: pointer;
-      margin-top: 24px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 8px;
-      -webkit-tap-highlight-color: transparent;
-    }
-    .btn-primary:active { opacity: 0.8; }
-
-    .btn-secondary {
-      background: var(--bg-secondary);
-      color: var(--text);
-      border: 0.5px solid var(--border-strong);
-      border-radius: var(--radius-sm);
-      padding: 10px 18px;
-      font-size: 14px;
-      cursor: pointer;
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      -webkit-tap-highlight-color: transparent;
-    }
-
+    .sev-row{display:flex;gap:5px;margin-top:5px;}
+    .sev-btn{flex:1;border:0.5px solid var(--border2);border-radius:var(--r-sm);padding:7px 3px;font-size:11px;cursor:pointer;background:var(--bg);color:var(--text-muted);text-align:center;-webkit-tap-highlight-color:transparent;}
+    .sev-btn.on{font-weight:700;}
+    .sev-btn.s1.on{background:#EAF3DE;border-color:#3B6D11;color:#3B6D11;}
+    .sev-btn.s2.on{background:#FAEEDA;border-color:#854F0B;color:#854F0B;}
+    .sev-btn.s3.on{background:#FAECE7;border-color:#993C1D;color:#993C1D;}
+    .sev-btn.s4.on{background:#FCEBEB;border-color:#A32D2D;color:#A32D2D;}
+    .sev-btn.s5.on{background:#F7C1C1;border-color:#791F1F;color:#791F1F;}
+    /* Buttons */
+    .btn-primary{width:100%;background:var(--teal);color:white;border:none;border-radius:var(--r);padding:13px;font-size:15px;font-weight:600;cursor:pointer;margin-top:20px;display:flex;align-items:center;justify-content:center;gap:7px;-webkit-tap-highlight-color:transparent;}
+    .btn-primary:active{opacity:.8;}
+    .btn-sec{background:var(--bg2);color:var(--text);border:0.5px solid var(--border2);border-radius:var(--r-sm);padding:9px 15px;font-size:13px;cursor:pointer;display:inline-flex;align-items:center;gap:5px;-webkit-tap-highlight-color:transparent;}
+    .btn-icon{background:none;border:none;cursor:pointer;color:var(--text-muted);padding:4px;font-size:18px;display:inline-flex;align-items:center;-webkit-tap-highlight-color:transparent;}
     /* Cards */
-    .card {
-      background: var(--bg);
-      border: 0.5px solid var(--border);
-      border-radius: var(--radius);
-      padding: 14px 16px;
-      margin-bottom: 10px;
-    }
-    .card-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 6px;
-    }
-    .card-title { font-weight: 600; font-size: 14px; }
-    .card-meta { font-size: 12px; color: var(--text-muted); }
-
-    .badge {
-      font-size: 11px;
-      padding: 3px 8px;
-      border-radius: 20px;
-      font-weight: 500;
-    }
-    .badge-green { background: #EAF3DE; color: #3B6D11; }
-    .badge-amber { background: #FAEEDA; color: #854F0B; }
-    .badge-red   { background: #FCEBEB; color: #A32D2D; }
-    .badge-teal  { background: #E1F5EE; color: #0F6E56; }
-    .badge-gray  { background: var(--bg-secondary); color: var(--text-muted); border: 0.5px solid var(--border); }
-
-    .pill {
-      display: inline-block;
-      background: var(--bg-secondary);
-      border-radius: 20px;
-      padding: 3px 10px;
-      font-size: 12px;
-      margin: 2px 2px 0 0;
-    }
-
+    .card{background:var(--bg);border:0.5px solid var(--border);border-radius:var(--r);padding:13px 15px;margin-bottom:9px;}
+    .card-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:5px;}
+    .card-title{font-weight:600;font-size:14px;}
+    .card-meta{font-size:12px;color:var(--text-muted);}
+    .badge{font-size:11px;padding:3px 8px;border-radius:20px;font-weight:500;}
+    .badge-green{background:#EAF3DE;color:#3B6D11;} .badge-amber{background:#FAEEDA;color:#854F0B;}
+    .badge-red{background:#FCEBEB;color:#A32D2D;} .badge-teal{background:#E1F5EE;color:#0F6E56;}
+    .badge-gray{background:var(--bg2);color:var(--text-muted);border:0.5px solid var(--border);}
+    .badge-purple{background:#EEEDFE;color:#3C3489;}
+    .pill{display:inline-block;background:var(--bg2);border-radius:20px;padding:2px 9px;font-size:12px;margin:2px 2px 0 0;}
     /* Stats */
-    .stat-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-bottom: 20px; }
-    .stat { background: var(--bg-secondary); border-radius: var(--radius-sm); padding: 12px; text-align: center; }
-    .stat-num { font-size: 24px; font-weight: 700; color: var(--teal); }
-    .stat-lbl { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
-
-    /* Day group */
-    .day-heading {
-      font-size: 12px;
-      font-weight: 600;
-      color: var(--text-muted);
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-      margin: 20px 0 10px;
-    }
-    .day-heading:first-child { margin-top: 0; }
-
-    /* AI block */
-    .ai-card {
-      background: var(--teal-light);
-      border-radius: var(--radius);
-      padding: 16px;
-      margin-bottom: 16px;
-    }
-    .ai-header {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      margin-bottom: 12px;
-    }
-    .ai-dot {
-      width: 8px; height: 8px;
-      border-radius: 50%;
-      background: var(--teal);
-      flex-shrink: 0;
-    }
-    .ai-title { font-weight: 600; font-size: 14px; color: var(--teal-dark); }
-    .ai-body { font-size: 14px; line-height: 1.7; color: var(--text); }
-    .ai-body p { margin-bottom: 10px; }
-    .ai-body p:last-child { margin-bottom: 0; }
-
-    .empty {
-      text-align: center;
-      padding: 60px 20px;
-      color: var(--text-muted);
-    }
-    .empty i { font-size: 48px; display: block; margin-bottom: 16px; opacity: 0.3; }
-    .empty p { font-size: 14px; line-height: 1.6; }
-
-    /* Toast */
-    .toast {
-      position: fixed;
-      bottom: calc(80px + var(--safe-bottom));
-      left: 50%;
-      transform: translateX(-50%) translateY(20px);
-      background: var(--text);
-      color: var(--bg);
-      padding: 10px 20px;
-      border-radius: 20px;
-      font-size: 14px;
-      font-weight: 500;
-      opacity: 0;
-      transition: all 0.25s ease;
-      pointer-events: none;
-      white-space: nowrap;
-      z-index: 100;
-    }
-    .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
-
-    .hint {
-      font-size: 12px;
-      color: var(--text-muted);
-      line-height: 1.5;
-      padding: 10px 12px;
-      background: var(--bg-secondary);
-      border-radius: var(--radius-sm);
-      margin-top: 8px;
-    }
-    .hint i { margin-right: 4px; }
+    .stat-row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:18px;}
+    .stat{background:var(--bg2);border-radius:var(--r-sm);padding:11px;text-align:center;}
+    .stat-num{font-size:22px;font-weight:700;color:var(--teal);}
+    .stat-lbl{font-size:10px;color:var(--text-muted);margin-top:2px;}
+    .day-heading{font-size:12px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.05em;margin:18px 0 9px;}
+    .day-heading:first-child{margin-top:0;}
+    /* AI */
+    .ai-card{background:var(--teal-light);border-radius:var(--r);padding:15px;margin-bottom:14px;}
+    .ai-header{display:flex;align-items:center;gap:7px;margin-bottom:11px;}
+    .ai-dot{width:7px;height:7px;border-radius:50%;background:var(--teal);flex-shrink:0;}
+    .ai-body{font-size:14px;line-height:1.7;color:var(--text);}
+    .ai-body p{margin-bottom:9px;} .ai-body p:last-child{margin-bottom:0;}
+    .empty{text-align:center;padding:50px 20px;color:var(--text-muted);}
+    .empty i{font-size:44px;display:block;margin-bottom:14px;opacity:.3;}
+    .empty p{font-size:14px;line-height:1.6;}
+    .toast{position:fixed;bottom:calc(72px + var(--safe-bot));left:50%;transform:translateX(-50%) translateY(16px);background:var(--text);color:var(--bg);padding:9px 18px;border-radius:20px;font-size:13px;font-weight:500;opacity:0;transition:all .22s ease;pointer-events:none;white-space:nowrap;z-index:200;}
+    .toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+    .hint{font-size:12px;color:var(--text-muted);line-height:1.5;padding:9px 11px;background:var(--bg2);border-radius:var(--r-sm);margin-top:7px;}
+    /* Alcohol grid */
+    .alc-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:7px;margin-top:5px;}
+    .alc-btn{border:0.5px solid var(--border2);border-radius:var(--r-sm);padding:10px 5px;font-size:13px;cursor:pointer;background:var(--bg);color:var(--text);text-align:center;-webkit-tap-highlight-color:transparent;width:100%;}
+    .alc-btn.sel{background:#EEEDFE;border-color:#534AB7;color:#3C3489;}
+    /* Bristol */
+    .bristol-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:5px;}
+    .bristol-btn{border:0.5px solid var(--border2);border-radius:var(--r-sm);padding:10px;cursor:pointer;background:var(--bg);color:var(--text);text-align:left;display:flex;align-items:center;gap:9px;-webkit-tap-highlight-color:transparent;width:100%;}
+    .bristol-btn.sel{background:var(--teal-light);border-color:var(--teal);}
+    .bristol-type{font-size:12px;font-weight:600;}
+    .bristol-desc{font-size:11px;color:var(--text-muted);margin-top:1px;line-height:1.3;}
+    /* Favorieten */
+    .fav-item{display:flex;align-items:center;gap:8px;padding:10px 0;border-bottom:0.5px solid var(--border);}
+    .fav-item:last-child{border-bottom:none;}
+    .section-title{font-size:13px;font-weight:600;color:var(--text-muted);margin:18px 0 8px;text-transform:uppercase;letter-spacing:.04em;}
+    .section-title:first-child{margin-top:0;}
+    .export-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px;}
+    .export-btn{border:0.5px solid var(--border2);border-radius:var(--r);padding:16px;cursor:pointer;background:var(--bg2);color:var(--text);text-align:center;display:flex;flex-direction:column;align-items:center;gap:7px;-webkit-tap-highlight-color:transparent;width:100%;}
+    .export-btn i{font-size:28px;color:var(--teal);}
+    .export-btn span{font-size:13px;font-weight:500;}
+    .export-btn small{font-size:11px;color:var(--text-muted);}
+    /* Supabase setup */
+    .setup-card{background:var(--bg2);border:0.5px solid var(--border2);border-radius:var(--r);padding:16px;margin-bottom:14px;}
+    .setup-step{display:flex;gap:10px;margin-bottom:12px;align-items:flex-start;}
+    .setup-step:last-child{margin-bottom:0;}
+    .step-num{width:22px;height:22px;border-radius:50%;background:var(--teal);color:white;font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px;}
+    .step-text{font-size:13px;line-height:1.5;}
+    .step-text a{color:var(--teal);}
+    .connected-bar{background:#EAF3DE;border:0.5px solid #3B6D11;border-radius:var(--r-sm);padding:10px 14px;display:flex;align-items:center;gap:8px;margin-bottom:14px;}
+    .connected-bar i{color:#3B6D11;font-size:18px;}
+    .connected-bar span{font-size:13px;color:#3B6D11;font-weight:500;}
   </style>
 </head>
 <body>
-
 <div class="app">
   <div class="header">
-    <h1>🍽 Voedingsdagboek</h1>
-    <p>Maaltijden &amp; klachten — AI detecteert patronen</p>
+    <div class="header-left">
+      <h1>🍽 Voedingsdagboek</h1>
+      <p>Maaltijden &amp; klachten — AI detecteert patronen</p>
+    </div>
+    <div class="sync-badge" id="sync-badge"><i class="ti ti-cloud-off"></i> Offline</div>
   </div>
-
   <div class="content">
 
-    <!-- MAALTIJD SCHERM -->
+    <!-- MAALTIJD -->
     <div class="screen active" id="screen-maaltijd">
       <div class="row2">
-        <div>
-          <label class="lbl">Datum</label>
-          <input type="date" id="m-datum" />
-        </div>
-        <div>
-          <label class="lbl">Moment</label>
+        <div><label class="lbl">Datum</label><input type="date" id="m-datum" /></div>
+        <div><label class="lbl">Moment</label>
           <select id="m-moment">
-            <option>Ontbijt</option>
-            <option>Lunch</option>
-            <option>Avondmaal</option>
-            <option>Tussendoortje</option>
-            <option>Snack</option>
+            <option>Ontbijt</option><option>Lunch</option><option>Avondmaal</option><option>Tussendoortje</option><option>Snack</option>
           </select>
         </div>
       </div>
       <label class="lbl">Wat at / dronk je?</label>
       <textarea id="m-inhoud" placeholder="Bijv. havermout met amandelmelk, banaan, koffie met volle melk..."></textarea>
+      <div id="fav-suggesties" style="display:none;margin-top:8px;">
+        <div style="font-size:12px;color:var(--text-muted);margin-bottom:5px;">Favorieten — tik om in te vullen:</div>
+        <div id="fav-chips" style="display:flex;flex-wrap:wrap;gap:6px;"></div>
+      </div>
       <label class="lbl">Extra context (optioneel)</label>
-      <input type="text" id="m-context" placeholder="Bijv. at snel, gekruid, alcohol, stress..." />
-      <button class="btn-primary" id="m-btn" onclick="slaatMaaltijdOp()">
-        <i class="ti ti-device-floppy"></i> Maaltijd opslaan
+      <input type="text" id="m-context" placeholder="Bijv. at snel, gekruid, restaurant, stress..." />
+      <div style="display:flex;gap:8px;margin-top:20px;">
+        <button class="btn-primary" onclick="slaatMaaltijdOp()" style="margin-top:0;flex:1;">
+          <i class="ti ti-device-floppy"></i> Opslaan
+        </button>
+        <button class="btn-sec" onclick="slaatAlsFavoriet()" title="Bewaar als favoriet" style="flex-shrink:0;">
+          <i class="ti ti-star"></i>
+        </button>
+      </div>
+    </div>
+
+    <!-- ALCOHOL -->
+    <div class="screen" id="screen-alcohol">
+      <label class="lbl">Datum</label>
+      <input type="date" id="a-datum" />
+      <label class="lbl">Type drank</label>
+      <div class="alc-grid">
+        <button class="alc-btn" onclick="selAlc(this,'Wijn')">🍷 Wijn</button>
+        <button class="alc-btn" onclick="selAlc(this,'Bier')">🍺 Bier</button>
+        <button class="alc-btn" onclick="selAlc(this,'Gedistilleerd')">🥃 Gedistilleerd</button>
+        <button class="alc-btn" onclick="selAlc(this,'Champagne')">🥂 Champagne</button>
+        <button class="alc-btn" onclick="selAlc(this,'Cocktail')">🍹 Cocktail</button>
+        <button class="alc-btn" onclick="selAlc(this,'Andere')">🫗 Andere</button>
+      </div>
+      <div class="row2" style="margin-top:12px;">
+        <div><label class="lbl">Aantal eenheden</label>
+          <input type="number" id="a-eenheden" min="0" max="20" step="0.5" placeholder="bijv. 2" /></div>
+        <div><label class="lbl">Tijdstip</label>
+          <select id="a-tijdstip">
+            <option>Aperitief</option><option>Bij het eten</option><option>Na het eten</option><option>Avond/nacht</option>
+          </select>
+        </div>
+      </div>
+      <label class="lbl">Notitie</label>
+      <input type="text" id="a-notitie" placeholder="Bijv. restaurantbezoek, feestje..." />
+      <div class="hint" style="margin-top:10px;">
+        <i class="ti ti-info-circle"></i> 1 eenheid = 10g alcohol — glas wijn ≈ 1,5 / pintje ≈ 1,5 / borrel ≈ 1
+      </div>
+      <button class="btn-primary" onclick="slaatAlcoholOp()">
+        <i class="ti ti-device-floppy"></i> Alcohol opslaan
       </button>
     </div>
 
-    <!-- KLACHTEN SCHERM -->
+    <!-- KLACHTEN -->
     <div class="screen" id="screen-klachten">
       <label class="lbl">Datum van klachten</label>
       <input type="date" id="k-datum" />
-      <div class="hint">
-        <i class="ti ti-info-circle"></i>Eén registratie per dag, bij voorkeur 's avonds. De AI zoekt oorzaken in de voeding van de dag zelf, gisteren en eergisteren.
+      <div class="hint" style="margin-top:6px;">
+        <i class="ti ti-info-circle"></i> Eén registratie per dag, bij voorkeur 's avonds. AI zoekt oorzaken tot 2 dagen terug.
       </div>
       <label class="lbl">Klachten vandaag</label>
-      <div class="sym-grid" id="k-grid">
-        <button class="sym-btn" onclick="togSym(this,'Opgeblazen gevoel')"><i class="ti ti-circle-dotted"></i>Opgeblazen gevoel</button>
-        <button class="sym-btn" onclick="togSym(this,'Krampen')"><i class="ti ti-bolt"></i>Krampen</button>
-        <button class="sym-btn" onclick="togSym(this,'Winderigheid')"><i class="ti ti-wind"></i>Winderigheid</button>
-        <button class="sym-btn" onclick="togSym(this,'Diarree')"><i class="ti ti-droplet"></i>Diarree</button>
-        <button class="sym-btn" onclick="togSym(this,'Obstipatie')"><i class="ti ti-lock"></i>Obstipatie</button>
-        <button class="sym-btn" onclick="togSym(this,'Misselijkheid')"><i class="ti ti-mood-sad"></i>Misselijkheid</button>
-        <button class="sym-btn" onclick="togSym(this,'Maagpijn')"><i class="ti ti-heart-off"></i>Maagpijn</button>
-        <button class="sym-btn" onclick="togSym(this,'Reflux')"><i class="ti ti-arrow-up"></i>Reflux</button>
-        <button class="sym-btn" onclick="togSym(this,'Vermoeidheid')"><i class="ti ti-zzz"></i>Vermoeidheid</button>
-        <button class="sym-btn" onclick="togSym(this,'Geen klachten')"><i class="ti ti-check"></i>Geen klachten</button>
+      <div class="sym-grid">
+        <button class="tog-btn" onclick="togSym(this,'Opgeblazen gevoel')">🫧 Opgeblazen gevoel</button>
+        <button class="tog-btn" onclick="togSym(this,'Krampen')">⚡ Krampen</button>
+        <button class="tog-btn" onclick="togSym(this,'Winderigheid')">💨 Winderigheid</button>
+        <button class="tog-btn" onclick="togSym(this,'Diarree')">💧 Diarree</button>
+        <button class="tog-btn" onclick="togSym(this,'Obstipatie')">🔒 Obstipatie</button>
+        <button class="tog-btn" onclick="togSym(this,'Misselijkheid')">😞 Misselijkheid</button>
+        <button class="tog-btn" onclick="togSym(this,'Maagpijn')">🫀 Maagpijn</button>
+        <button class="tog-btn" onclick="togSym(this,'Reflux')">↑ Reflux</button>
+        <button class="tog-btn" onclick="togSym(this,'Vermoeidheid')">😴 Vermoeidheid</button>
+        <button class="tog-btn" onclick="togSym(this,'Geen klachten')">✅ Geen klachten</button>
       </div>
-      <label class="lbl">Ernst</label>
-      <div class="sev-row" id="k-sev">
+      <label class="lbl">Ernst (1 = nauwelijks &nbsp;—&nbsp; 5 = hevig)</label>
+      <div class="sev-row">
         <button class="sev-btn s1" onclick="setSev(1)">1</button>
         <button class="sev-btn s2" onclick="setSev(2)">2</button>
         <button class="sev-btn s3" onclick="setSev(3)">3</button>
         <button class="sev-btn s4" onclick="setSev(4)">4</button>
         <button class="sev-btn s5" onclick="setSev(5)">5</button>
       </div>
-      <label class="lbl">Stoelgang</label>
-      <select id="k-stoelgang">
-        <option value="">— niet ingevuld —</option>
-        <option>Normaal</option>
-        <option>Zacht / papperig</option>
-        <option>Diarree</option>
-        <option>Hard / bolletjes</option>
-        <option>Geen stoelgang</option>
-      </select>
+      <label class="lbl">Stoelgang — Bristol schaal</label>
+      <div class="bristol-grid">
+        <button class="bristol-btn" onclick="setBristol(this,1)">
+          <svg width="36" height="36" viewBox="0 0 36 36" style="flex-shrink:0"><circle cx="9" cy="27" r="5" fill="#8B4513"/><circle cx="20" cy="23" r="5" fill="#8B4513"/><circle cx="29" cy="14" r="4" fill="#8B4513"/></svg>
+          <div><div class="bristol-type">Type 1</div><div class="bristol-desc">Harde, afzonderlijke keutels</div></div>
+        </button>
+        <button class="bristol-btn" onclick="setBristol(this,2)">
+          <svg width="36" height="36" viewBox="0 0 36 36" style="flex-shrink:0"><ellipse cx="18" cy="20" rx="14" ry="8" fill="#A0522D"/><circle cx="9" cy="19" r="4" fill="#7a3a18"/><circle cx="17" cy="15" r="3.5" fill="#7a3a18"/><circle cx="25" cy="20" r="4" fill="#7a3a18"/></svg>
+          <div><div class="bristol-type">Type 2</div><div class="bristol-desc">Worstachtig, klonterig</div></div>
+        </button>
+        <button class="bristol-btn" onclick="setBristol(this,3)">
+          <svg width="36" height="36" viewBox="0 0 36 36" style="flex-shrink:0"><ellipse cx="18" cy="21" rx="14" ry="7" fill="#CD853F"/><path d="M5 19 Q10 15 15 19 Q20 23 25 19 Q28 17 31 19" stroke="#8B4513" stroke-width="1.5" fill="none"/></svg>
+          <div><div class="bristol-type">Type 3</div><div class="bristol-desc">Worstachtig, gebarsten</div></div>
+        </button>
+        <button class="bristol-btn" onclick="setBristol(this,4)">
+          <svg width="36" height="36" viewBox="0 0 36 36" style="flex-shrink:0"><ellipse cx="18" cy="21" rx="14" ry="7" fill="#D2A679"/></svg>
+          <div><div class="bristol-type">Type 4</div><div class="bristol-desc">Glad, worstachtig — normaal</div></div>
+        </button>
+        <button class="bristol-btn" onclick="setBristol(this,5)">
+          <svg width="36" height="36" viewBox="0 0 36 36" style="flex-shrink:0"><ellipse cx="10" cy="23" rx="7" ry="5" fill="#C4A882"/><ellipse cx="24" cy="21" rx="7" ry="5" fill="#C4A882"/><ellipse cx="18" cy="14" rx="5" ry="4" fill="#C4A882"/></svg>
+          <div><div class="bristol-type">Type 5</div><div class="bristol-desc">Zachte klonten, duidelijke randen</div></div>
+        </button>
+        <button class="bristol-btn" onclick="setBristol(this,6)">
+          <svg width="36" height="36" viewBox="0 0 36 36" style="flex-shrink:0"><ellipse cx="18" cy="21" rx="13" ry="7" fill="#D4B896"/><ellipse cx="10" cy="19" rx="5" ry="3" fill="#C4A882"/><ellipse cx="26" cy="23" rx="5" ry="3" fill="#C4A882"/><ellipse cx="18" cy="13" rx="4" ry="2.5" fill="#C4A882"/></svg>
+          <div><div class="bristol-type">Type 6</div><div class="bristol-desc">Zacht, pluizig, gerafelde randen</div></div>
+        </button>
+        <button class="bristol-btn" onclick="setBristol(this,7)" style="grid-column:1/2">
+          <svg width="36" height="36" viewBox="0 0 36 36" style="flex-shrink:0"><ellipse cx="18" cy="23" rx="14" ry="5" fill="#D2B48C" opacity=".5"/><ellipse cx="14" cy="18" rx="8" ry="3" fill="#D2B48C" opacity=".4"/><ellipse cx="22" cy="15" rx="6" ry="2.5" fill="#D2B48C" opacity=".35"/></svg>
+          <div><div class="bristol-type">Type 7</div><div class="bristol-desc">Waterig, volledig vloeibaar</div></div>
+        </button>
+        <button class="bristol-btn" onclick="setBristol(this,0)" style="grid-column:2/3">
+          <svg width="36" height="36" viewBox="0 0 36 36" style="flex-shrink:0"><line x1="8" y1="8" x2="28" y2="28" stroke="#9ca3af" stroke-width="2.5" stroke-linecap="round"/><line x1="28" y1="8" x2="8" y2="28" stroke="#9ca3af" stroke-width="2.5" stroke-linecap="round"/></svg>
+          <div><div class="bristol-type">Geen stoelgang</div><div class="bristol-desc">Vandaag geen</div></div>
+        </button>
+      </div>
       <label class="lbl">Notitie</label>
       <input type="text" id="k-notitie" placeholder="Bijv. klachten begonnen 's middags, na koffie erger..." />
-      <button class="btn-primary" id="k-btn" onclick="slaatKlachtenOp()">
+      <button class="btn-primary" onclick="slaatKlachtenOp()">
         <i class="ti ti-device-floppy"></i> Klachten opslaan
       </button>
     </div>
 
-    <!-- DAGBOEK SCHERM -->
+    <!-- DAGBOEK -->
     <div class="screen" id="screen-dagboek">
       <div class="stat-row">
         <div class="stat"><div class="stat-num" id="s-m">0</div><div class="stat-lbl">Maaltijden</div></div>
@@ -434,230 +278,450 @@
       <div id="dagboek-lijst"></div>
     </div>
 
-    <!-- ANALYSE SCHERM -->
-    <div class="screen" id="screen-analyse">
+    <!-- MEER -->
+    <div class="screen" id="screen-meer">
+
+      <!-- AI Analyse -->
       <div class="ai-card">
-        <div class="ai-header">
-          <div class="ai-dot"></div>
-          <span class="ai-title">AI-patroonanalyse</span>
-        </div>
+        <div class="ai-header"><div class="ai-dot"></div><span style="font-weight:600;font-size:14px;color:var(--teal-dark)">AI-patroonanalyse</span></div>
         <div id="ai-content">
-          <p style="font-size:14px;line-height:1.6;margin-bottom:14px;">De AI vergelijkt voeding van de dag zelf, de dag voordien en 2 dagen voordien met klachtenvrije dagen — zo worden triggers zichtbaar.</p>
-          <button class="btn-secondary" onclick="runAnalyse()"><i class="ti ti-cpu"></i> Analyseer patronen</button>
+          <p style="font-size:14px;line-height:1.6;margin-bottom:12px;">De AI vergelijkt voeding van de dag zelf, dag voordien en 2 dagen voordien met klachtenvrije dagen.</p>
+          <button class="btn-sec" onclick="runAnalyse()"><i class="ti ti-cpu"></i> Analyseer patronen</button>
         </div>
       </div>
+
+      <!-- Export -->
+      <div class="section-title">Export &amp; backup</div>
+      <div class="export-grid">
+        <button class="export-btn" onclick="exportExcel()">
+          <i class="ti ti-file-spreadsheet"></i>
+          <span>Excel</span>
+          <small>Voor lifestyle arts</small>
+        </button>
+        <button class="export-btn" onclick="exportJSON()">
+          <i class="ti ti-database-export"></i>
+          <span>JSON backup</span>
+          <small>Volledige backup</small>
+        </button>
+      </div>
+      <button class="btn-sec" onclick="document.getElementById('import-file').click()" style="width:100%;justify-content:center;margin-top:8px;">
+        <i class="ti ti-database-import"></i> JSON importeren (herstel backup)
+      </button>
+      <input type="file" id="import-file" accept=".json" style="display:none" onchange="importJSON(event)" />
+
+      <!-- Favorieten -->
+      <div class="section-title" style="margin-top:22px;">Favorieten beheren</div>
+      <div id="fav-lijst"></div>
+
+      <!-- Supabase instellen -->
+      <div class="section-title" style="margin-top:22px;">☁️ Online opslag (Supabase)</div>
+      <div id="supabase-setup"></div>
+
     </div>
+  </div>
 
-  </div><!-- /content -->
-
-  <!-- Bottom tab bar -->
   <div class="tabbar">
-    <button class="tab-btn active" onclick="switchTab('maaltijd',this)">
-      <i class="ti ti-fork-knife"></i>Maaltijd
-    </button>
-    <button class="tab-btn" onclick="switchTab('klachten',this)">
-      <i class="ti ti-activity"></i>Klachten
-    </button>
-    <button class="tab-btn" onclick="switchTab('dagboek',this)">
-      <i class="ti ti-calendar"></i>Dagboek
-    </button>
-    <button class="tab-btn" onclick="switchTab('analyse',this)">
-      <i class="ti ti-cpu"></i>Analyse
-    </button>
+    <button class="tab-btn active" onclick="switchTab('maaltijd',this)"><i class="ti ti-salad"></i>Maaltijd</button>
+    <button class="tab-btn" onclick="switchTab('alcohol',this)"><i class="ti ti-beer"></i>Alcohol</button>
+    <button class="tab-btn" onclick="switchTab('klachten',this)"><i class="ti ti-activity"></i>Klachten</button>
+    <button class="tab-btn" onclick="switchTab('dagboek',this)"><i class="ti ti-calendar"></i>Dagboek</button>
+    <button class="tab-btn" onclick="switchTab('meer',this)"><i class="ti ti-dots"></i>Meer</button>
   </div>
 </div>
-
 <div class="toast" id="toast"></div>
 
 <script>
-// Data
-let maaltijden = JSON.parse(localStorage.getItem('vdb_m') || '[]');
-let klachten   = JSON.parse(localStorage.getItem('vdb_k') || '[]');
-let selSym = [], selSev = 0;
+// ── Supabase config ─────────────────────────────────────────────────────────
+let SB_URL = localStorage.getItem('sb_url') || '';
+let SB_KEY = localStorage.getItem('sb_key') || '';
 
-// Init dates
-function today() { return new Date().toISOString().slice(0,10); }
+async function sbFetch(path, method='GET', body=null){
+  if(!SB_URL || !SB_KEY) return null;
+  const opts = { method, headers:{'Content-Type':'application/json','apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY,'Prefer':'return=minimal'} };
+  if(body) opts.body=JSON.stringify(body);
+  try{
+    const r = await fetch(SB_URL+'/rest/v1/'+path, opts);
+    if(r.status===204||r.status===201||r.status===200){
+      const txt=await r.text();
+      return txt?JSON.parse(txt):true;
+    }
+    return null;
+  }catch(e){ return null; }
+}
+
+async function sbSync(){
+  if(!SB_URL||!SB_KEY){ setBadge('offline'); return; }
+  setBadge('busy');
+  // Load all from supabase
+  const [rm,rk,ra,rf] = await Promise.all([
+    sbFetch('maaltijden?select=*&order=datum.desc'),
+    sbFetch('klachten?select=*&order=datum.desc'),
+    sbFetch('alcohol?select=*&order=datum.desc'),
+    sbFetch('favorieten?select=*')
+  ]);
+  if(rm===null){ setBadge('err'); return; }
+  maaltijden=rm||[]; klachten=rk||[]; alcohol=ra||[]; favorieten=rf||[];
+  saveLocal();
+  renderFavSuggesties();
+  setBadge('ok');
+}
+
+function setBadge(state){
+  const b=document.getElementById('sync-badge');
+  b.className='sync-badge';
+  if(state==='ok'){ b.className+=' ok'; b.innerHTML='<i class="ti ti-cloud-check"></i> Online'; }
+  else if(state==='err'){ b.className+=' err'; b.innerHTML='<i class="ti ti-cloud-x"></i> Fout'; }
+  else if(state==='busy'){ b.className+=' busy'; b.innerHTML='<i class="ti ti-cloud-upload"></i> Syncing...'; }
+  else { b.innerHTML='<i class="ti ti-cloud-off"></i> Offline'; }
+}
+
+async function sbUpsert(table, row){
+  if(!SB_URL||!SB_KEY) return;
+  await sbFetch(table+'?on_conflict=id', 'POST', row);
+  setBadge('ok');
+}
+
+// ── Local data ───────────────────────────────────────────────────────────────
+let maaltijden  = JSON.parse(localStorage.getItem('vdb_m')   || '[]');
+let klachten    = JSON.parse(localStorage.getItem('vdb_k')   || '[]');
+let alcohol     = JSON.parse(localStorage.getItem('vdb_a')   || '[]');
+let favorieten  = JSON.parse(localStorage.getItem('vdb_fav') || '[]');
+let selSym=[], selSev=0, selBristol=null, selAlcType=null;
+
+function saveLocal(){
+  localStorage.setItem('vdb_m',   JSON.stringify(maaltijden));
+  localStorage.setItem('vdb_k',   JSON.stringify(klachten));
+  localStorage.setItem('vdb_a',   JSON.stringify(alcohol));
+  localStorage.setItem('vdb_fav', JSON.stringify(favorieten));
+}
+
+// ── Init ────────────────────────────────────────────────────────────────────
+function today(){ return new Date().toISOString().slice(0,10); }
 document.getElementById('m-datum').value = today();
 document.getElementById('k-datum').value = today();
+document.getElementById('a-datum').value = today();
+renderFavSuggesties();
+if(SB_URL && SB_KEY) sbSync();
 
-// Tab switching
-function switchTab(name, btn) {
-  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-  document.getElementById('screen-' + name).classList.add('active');
-  if (btn) btn.classList.add('active');
-  if (name === 'dagboek') renderDagboek();
-  if (name === 'analyse') updateAnalyseInfo();
-  // Scroll to top
-  document.querySelector('.content').scrollTop = 0;
+// ── Tabs ────────────────────────────────────────────────────────────────────
+function switchTab(name,btn){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('screen-'+name).classList.add('active');
+  if(btn) btn.classList.add('active');
+  if(name==='dagboek') renderDagboek();
+  if(name==='meer'){ renderFavLijst(); renderSupabaseSetup(); }
+  document.querySelector('.content').scrollTop=0;
 }
 
-// Toast
-function toast(msg) {
-  const t = document.getElementById('toast');
-  t.textContent = msg;
-  t.classList.add('show');
-  setTimeout(() => t.classList.remove('show'), 2000);
+// ── Toast ───────────────────────────────────────────────────────────────────
+function toast(msg){
+  const t=document.getElementById('toast');
+  t.textContent=msg; t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),2200);
 }
 
-// Symptoms
-function togSym(btn, naam) {
+// ── Inputs ──────────────────────────────────────────────────────────────────
+function togSym(btn,naam){
   btn.classList.toggle('sel');
-  if (btn.classList.contains('sel')) selSym.push(naam);
-  else selSym = selSym.filter(s => s !== naam);
+  if(btn.classList.contains('sel')) selSym.push(naam);
+  else selSym=selSym.filter(s=>s!==naam);
 }
-function setSev(n) {
-  selSev = n;
-  document.querySelectorAll('.sev-btn').forEach((b,i) => b.classList.toggle('on', i+1 === n));
+function setSev(n){
+  selSev=n;
+  document.querySelectorAll('.sev-btn').forEach((b,i)=>b.classList.toggle('on',i+1===n));
+}
+function setBristol(btn,n){
+  document.querySelectorAll('.bristol-btn').forEach(b=>b.classList.remove('sel'));
+  btn.classList.add('sel');
+  selBristol=n;
+}
+function selAlc(btn,type){
+  document.querySelectorAll('.alc-btn').forEach(b=>b.classList.remove('sel'));
+  btn.classList.add('sel');
+  selAlcType=type;
 }
 
-// Save maaltijd
-function slaatMaaltijdOp() {
-  const inhoud = document.getElementById('m-inhoud').value.trim();
-  if (!inhoud) { toast('Vul in wat je at of dronk.'); return; }
-  maaltijden.unshift({
-    id: Date.now(),
-    datum: document.getElementById('m-datum').value,
-    moment: document.getElementById('m-moment').value,
-    inhoud,
-    context: document.getElementById('m-context').value.trim()
-  });
-  localStorage.setItem('vdb_m', JSON.stringify(maaltijden));
-  document.getElementById('m-inhoud').value = '';
-  document.getElementById('m-context').value = '';
+// ── Favorieten ───────────────────────────────────────────────────────────────
+function renderFavSuggesties(){
+  const box=document.getElementById('fav-suggesties');
+  const chips=document.getElementById('fav-chips');
+  if(!favorieten.length){ box.style.display='none'; return; }
+  box.style.display='block';
+  chips.innerHTML=favorieten.map((f,i)=>
+    `<button class="btn-sec" style="font-size:12px;padding:5px 10px;" onclick="vulFavorietIn(${i})">⭐ ${f.naam}</button>`
+  ).join('');
+}
+function vulFavorietIn(i){
+  const f=favorieten[i];
+  document.getElementById('m-inhoud').value=f.inhoud;
+  if(f.moment) document.getElementById('m-moment').value=f.moment;
+  toast('Favoriet ingevuld');
+}
+async function slaatAlsFavoriet(){
+  const inhoud=document.getElementById('m-inhoud').value.trim();
+  if(!inhoud){ toast('Vul eerst een maaltijd in.'); return; }
+  const naam=prompt('Naam voor dit favoriet?', inhoud.slice(0,40));
+  if(!naam) return;
+  const fav={id:'f'+Date.now(),naam,inhoud,moment:document.getElementById('m-moment').value};
+  favorieten.push(fav);
+  saveLocal(); renderFavSuggesties();
+  await sbUpsert('favorieten',fav);
+  toast('⭐ Favoriet opgeslagen');
+}
+function renderFavLijst(){
+  const el=document.getElementById('fav-lijst');
+  if(!favorieten.length){
+    el.innerHTML='<p style="font-size:13px;color:var(--text-muted)">Nog geen favorieten. Sla een maaltijd op als favoriet via de ster-knop.</p>'; return;
+  }
+  el.innerHTML=favorieten.map((f,i)=>
+    `<div class="fav-item">
+      <div style="flex:1"><div style="font-size:14px">⭐ ${f.naam}</div>
+      <div style="font-size:11px;color:var(--text-muted)">${f.moment} — ${f.inhoud.slice(0,55)}${f.inhoud.length>55?'…':''}</div></div>
+      <button class="btn-icon" onclick="verwijderFavoriet(${i})"><i class="ti ti-trash"></i></button>
+    </div>`
+  ).join('');
+}
+async function verwijderFavoriet(i){
+  if(!confirm('Favoriet verwijderen?')) return;
+  const id=favorieten[i].id;
+  favorieten.splice(i,1);
+  saveLocal(); renderFavLijst(); renderFavSuggesties();
+  if(SB_URL&&SB_KEY) await sbFetch('favorieten?id=eq.'+id,'DELETE');
+}
+
+// ── Opslaan ──────────────────────────────────────────────────────────────────
+async function slaatMaaltijdOp(){
+  const inhoud=document.getElementById('m-inhoud').value.trim();
+  if(!inhoud){ toast('Vul in wat je at of dronk.'); return; }
+  const row={id:'m'+Date.now(),datum:document.getElementById('m-datum').value,moment:document.getElementById('m-moment').value,inhoud,context:document.getElementById('m-context').value.trim()};
+  maaltijden.unshift(row); saveLocal();
+  document.getElementById('m-inhoud').value='';
+  document.getElementById('m-context').value='';
+  await sbUpsert('maaltijden',row);
   toast('✓ Maaltijd opgeslagen');
 }
 
-// Save klachten
-function slaatKlachtenOp() {
-  if (!selSym.length) { toast('Selecteer minstens één klacht.'); return; }
-  const datum = document.getElementById('k-datum').value;
-  klachten = klachten.filter(k => k.datum !== datum);
-  klachten.unshift({
-    id: Date.now(), datum,
-    symptomen: [...selSym],
-    ernst: selSev,
-    stoelgang: document.getElementById('k-stoelgang').value,
-    notitie: document.getElementById('k-notitie').value.trim()
-  });
-  localStorage.setItem('vdb_k', JSON.stringify(klachten));
-  selSym = []; selSev = 0;
-  document.querySelectorAll('.sym-btn').forEach(b => b.classList.remove('sel'));
-  document.querySelectorAll('.sev-btn').forEach(b => b.classList.remove('on'));
-  document.getElementById('k-stoelgang').value = '';
-  document.getElementById('k-notitie').value = '';
+async function slaatAlcoholOp(){
+  if(!selAlcType){ toast('Selecteer type drank.'); return; }
+  const datum=document.getElementById('a-datum').value;
+  const row={id:'a'+Date.now(),datum,type:selAlcType,eenheden:parseFloat(document.getElementById('a-eenheden').value)||0,tijdstip:document.getElementById('a-tijdstip').value,notitie:document.getElementById('a-notitie').value.trim()};
+  // Remove bestaande voor die datum
+  const oud=alcohol.find(a=>a.datum===datum);
+  if(oud&&SB_URL&&SB_KEY) await sbFetch('alcohol?id=eq.'+oud.id,'DELETE');
+  alcohol=alcohol.filter(a=>a.datum!==datum);
+  alcohol.unshift(row); saveLocal();
+  document.getElementById('a-eenheden').value='';
+  document.getElementById('a-notitie').value='';
+  document.querySelectorAll('.alc-btn').forEach(b=>b.classList.remove('sel'));
+  selAlcType=null;
+  await sbUpsert('alcohol',row);
+  toast('✓ Alcohol opgeslagen');
+}
+
+async function slaatKlachtenOp(){
+  if(!selSym.length){ toast('Selecteer minstens één klacht.'); return; }
+  const datum=document.getElementById('k-datum').value;
+  const row={id:'k'+Date.now(),datum,symptomen:selSym.join(','),ernst:selSev,bristol:selBristol,notitie:document.getElementById('k-notitie').value.trim()};
+  const oud=klachten.find(k=>k.datum===datum);
+  if(oud&&SB_URL&&SB_KEY) await sbFetch('klachten?id=eq.'+oud.id,'DELETE');
+  klachten=klachten.filter(k=>k.datum!==datum);
+  klachten.unshift(row); saveLocal();
+  selSym=[]; selSev=0; selBristol=null;
+  document.querySelectorAll('.tog-btn,.sev-btn,.bristol-btn').forEach(b=>b.classList.remove('sel','on'));
+  document.getElementById('k-notitie').value='';
+  await sbUpsert('klachten',row);
   toast('✓ Klachten opgeslagen');
 }
 
-// Format date NL
-function fmtDatum(str) {
-  if (!str) return '';
-  const d = new Date(str + 'T12:00:00');
-  return d.toLocaleDateString('nl-BE', { weekday: 'long', day: 'numeric', month: 'long' });
-}
+// ── Dagboek ──────────────────────────────────────────────────────────────────
+function fmtD(str){ return new Date(str+'T12:00:00').toLocaleDateString('nl-BE',{weekday:'long',day:'numeric',month:'long'}); }
 
-// Render dagboek
-function renderDagboek() {
-  const metKlachten = klachten.filter(k => !k.symptomen.includes('Geen klachten'));
-  document.getElementById('s-m').textContent = maaltijden.length;
-  document.getElementById('s-k').textContent = metKlachten.length;
-  document.getElementById('s-p').textContent = klachten.length
-    ? Math.round(metKlachten.length / klachten.length * 100) + '%' : '—';
+function getSymArr(k){ return typeof k.symptomen==='string'?k.symptomen.split(','):k.symptomen||[]; }
 
-  const el = document.getElementById('dagboek-lijst');
-  if (!maaltijden.length && !klachten.length) {
-    el.innerHTML = '<div class="empty"><i class="ti ti-notebook"></i><p>Nog geen registraties.<br>Voeg maaltijden en klachten toe.</p></div>';
-    return;
-  }
-
-  const allDatums = [...new Set([...maaltijden.map(m=>m.datum),...klachten.map(k=>k.datum)])].sort().reverse();
-  const order = ['Ontbijt','Tussendoortje','Lunch','Avondmaal','Snack'];
-
-  el.innerHTML = allDatums.map(datum => {
-    const dagM = maaltijden.filter(m => m.datum === datum)
-      .sort((a,b) => order.indexOf(a.moment) - order.indexOf(b.moment));
-    const dagK = klachten.find(k => k.datum === datum);
-    let html = `<div class="day-heading">${fmtDatum(datum)}</div>`;
-    dagM.forEach(m => {
-      html += `<div class="card">
-        <div class="card-header">
-          <span class="card-title">🍴 ${m.moment}</span>
-          <span class="badge badge-gray">maaltijd</span>
-        </div>
-        <div style="font-size:14px">${m.inhoud}</div>
-        ${m.context ? `<div class="card-meta" style="margin-top:5px">${m.context}</div>` : ''}
-      </div>`;
+function renderDagboek(){
+  const metK=klachten.filter(k=>!getSymArr(k).includes('Geen klachten'));
+  document.getElementById('s-m').textContent=maaltijden.length;
+  document.getElementById('s-k').textContent=metK.length;
+  document.getElementById('s-p').textContent=klachten.length?Math.round(metK.length/klachten.length*100)+'%':'—';
+  const el=document.getElementById('dagboek-lijst');
+  const all=[...new Set([...maaltijden.map(m=>m.datum),...klachten.map(k=>k.datum),...alcohol.map(a=>a.datum)])].sort().reverse();
+  if(!all.length){ el.innerHTML='<div class="empty"><i class="ti ti-notebook"></i><p>Nog geen registraties.</p></div>'; return; }
+  const mOrd=['Ontbijt','Tussendoortje','Lunch','Avondmaal','Snack'];
+  el.innerHTML=all.map(datum=>{
+    const dagM=maaltijden.filter(m=>m.datum===datum).sort((a,b)=>mOrd.indexOf(a.moment)-mOrd.indexOf(b.moment));
+    const dagK=klachten.find(k=>k.datum===datum);
+    const dagA=alcohol.find(a=>a.datum===datum);
+    let h=`<div class="day-heading">${fmtD(datum)}</div>`;
+    dagM.forEach(m=>{
+      h+=`<div class="card"><div class="card-header"><span class="card-title">🍴 ${m.moment}</span><span class="badge badge-gray">maaltijd</span></div>
+        <div style="font-size:14px">${m.inhoud}</div>${m.context?`<div class="card-meta" style="margin-top:4px">${m.context}</div>`:''}</div>`;
     });
-    if (dagK) {
-      const geen = dagK.symptomen.includes('Geen klachten');
-      const bc = geen ? 'badge-green' : dagK.ernst >= 4 ? 'badge-red' : dagK.ernst >= 2 ? 'badge-amber' : 'badge-teal';
-      const bt = geen ? 'Geen klachten' : `Ernst ${dagK.ernst}/5`;
-      const borderCol = geen ? '#1D9E75' : dagK.ernst >= 4 ? '#E24B4A' : dagK.ernst >= 2 ? '#EF9F27' : '#1D9E75';
-      html += `<div class="card" style="border-left:3px solid ${borderCol}">
-        <div class="card-header">
-          <span class="card-title">⚡ Klachten</span>
-          <span class="badge ${bc}">${bt}</span>
-        </div>
-        ${!geen ? `<div style="margin:5px 0">${dagK.symptomen.map(s=>`<span class="pill">${s}</span>`).join('')}</div>` : ''}
-        ${dagK.stoelgang ? `<div class="card-meta" style="margin-top:4px">Stoelgang: ${dagK.stoelgang}</div>` : ''}
-        ${dagK.notitie ? `<div class="card-meta" style="margin-top:4px">${dagK.notitie}</div>` : ''}
-      </div>`;
+    if(dagA){
+      h+=`<div class="card" style="border-left:3px solid #534AB7"><div class="card-header"><span class="card-title">🍷 Alcohol</span><span class="badge badge-purple">${dagA.eenheden} eenheden</span></div>
+        <div style="font-size:14px">${dagA.type} — ${dagA.tijdstip}</div>${dagA.notitie?`<div class="card-meta" style="margin-top:4px">${dagA.notitie}</div>`:''}</div>`;
     }
-    return html;
+    if(dagK){
+      const syms=getSymArr(dagK);
+      const geen=syms.includes('Geen klachten');
+      const bc=geen?'badge-green':dagK.ernst>=4?'badge-red':dagK.ernst>=2?'badge-amber':'badge-teal';
+      const bt=geen?'Geen klachten':`Ernst ${dagK.ernst}/5`;
+      const bc2=geen?'#1D9E75':dagK.ernst>=4?'#E24B4A':dagK.ernst>=2?'#EF9F27':'#1D9E75';
+      const brl=dagK.bristol!=null?dagK.bristol===0?'Geen stoelgang':`Bristol type ${dagK.bristol}`:'';
+      h+=`<div class="card" style="border-left:3px solid ${bc2}">
+        <div class="card-header"><span class="card-title">⚡ Klachten</span><span class="badge ${bc}">${bt}</span></div>
+        ${!geen?`<div style="margin:5px 0">${syms.map(s=>`<span class="pill">${s}</span>`).join('')}</div>`:''}
+        ${brl?`<div class="card-meta" style="margin-top:4px">${brl}</div>`:''}
+        ${dagK.notitie?`<div class="card-meta" style="margin-top:3px">${dagK.notitie}</div>`:''}</div>`;
+    }
+    return h;
   }).join('');
 }
 
-// Analyse
-function updateAnalyseInfo() {
-  const mDagen = [...new Set(maaltijden.map(m=>m.datum))].length;
-  const el = document.querySelector('#ai-content p');
-  if (el) el.textContent = `${mDagen} dagdagen met maaltijden, ${klachten.length} klachtenregistraties beschikbaar. De AI kijkt tot 2 dagen terug bij klachten.`;
-}
-
-async function runAnalyse() {
-  const ai = document.getElementById('ai-content');
-  ai.innerHTML = '<p style="font-size:14px;color:#0F6E56;font-style:italic">Analyseren... even geduld.</p>';
-
-  const klachtContext = klachten.slice(0, 20).map(k => {
-    const d = new Date(k.datum + 'T12:00:00');
-    const d1 = new Date(d); d1.setDate(d1.getDate()-1);
-    const d2 = new Date(d); d2.setDate(d2.getDate()-2);
-    const fmt = x => x.toISOString().slice(0,10);
-    const v0 = maaltijden.filter(m=>m.datum===k.datum).map(m=>`${m.moment}: ${m.inhoud}`).join('; ') || 'niet geregistreerd';
-    const v1 = maaltijden.filter(m=>m.datum===fmt(d1)).map(m=>`${m.moment}: ${m.inhoud}`).join('; ') || 'niet geregistreerd';
-    const v2 = maaltijden.filter(m=>m.datum===fmt(d2)).map(m=>`${m.moment}: ${m.inhoud}`).join('; ') || 'niet geregistreerd';
-    return `Datum: ${k.datum}
-Klachten: ${k.symptomen.join(', ')}${k.ernst?' | Ernst: '+k.ernst+'/5':''}${k.stoelgang?' | Stoelgang: '+k.stoelgang:''}${k.notitie?' | '+k.notitie:''}
-Voeding zelfde dag: ${v0}
-Voeding dag voordien (${fmt(d1)}): ${v1}
-Voeding 2 dagen voordien (${fmt(d2)}): ${v2}`;
-  }).join('\n\n') || 'Nog geen gekoppelde data.';
-
-  try {
-    const resp = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
-        max_tokens: 1000,
-        system: `Je bent een voedingspatroon-analist gespecialiseerd in spijsverteringsproblemen zoals opgeblazen gevoel, krampen en winderigheid. Analyseer het dagboek waarbij klachten worden gekoppeld aan de voeding van de dag zelf, de dag voordien en 2 dagen voordien. Schrijf in vloeiend Nederlands, geen markdown-opmaak, geen sterretjes, geen headers. Gebruik korte alinea's. Wees concreet. Als data onvoldoende is, zeg dat duidelijk.`,
-        messages: [{ role: 'user', content: `Analyseer dit dagboek:\n\n${klachtContext}` }]
-      })
-    });
-    const data = await resp.json();
-    const text = data.content?.find(b=>b.type==='text')?.text || 'Geen resultaat.';
-    ai.innerHTML = `<div class="ai-body">${text.split('\n').filter(l=>l.trim()).map(l=>`<p>${l}</p>`).join('')}</div>
-      <button class="btn-secondary" style="margin-top:14px" onclick="runAnalyse()"><i class="ti ti-refresh"></i> Heranalyseer</button>`;
-  } catch(e) {
-    ai.innerHTML = `<p style="font-size:14px;color:#A32D2D">Fout: ${e.message}</p>
-      <button class="btn-secondary" style="margin-top:10px" onclick="runAnalyse()">Opnieuw proberen</button>`;
+// ── AI Analyse ────────────────────────────────────────────────────────────────
+async function runAnalyse(){
+  const ai=document.getElementById('ai-content');
+  ai.innerHTML='<p style="font-size:14px;color:var(--teal-dark);font-style:italic">Analyseren... even geduld.</p>';
+  const ctx=klachten.slice(0,20).map(k=>{
+    const syms=getSymArr(k);
+    const d=new Date(k.datum+'T12:00:00');
+    const d1=new Date(d);d1.setDate(d1.getDate()-1);
+    const d2=new Date(d);d2.setDate(d2.getDate()-2);
+    const fmt=x=>x.toISOString().slice(0,10);
+    const v=dt=>maaltijden.filter(m=>m.datum===dt).map(m=>`${m.moment}: ${m.inhoud}`).join('; ')||'niet geregistreerd';
+    const alc=dt=>{const a=alcohol.find(x=>x.datum===dt);return a?`${a.type} ${a.eenheden}u`:'geen';};
+    const brl=k.bristol!=null?k.bristol===0?'geen stoelgang':`Bristol type ${k.bristol}`:'onbekend';
+    return `Datum: ${k.datum} | Klachten: ${syms.join(', ')} | Ernst: ${k.ernst}/5 | Stoelgang: ${brl}${k.notitie?' | '+k.notitie:''}
+  Voeding zelfde dag: ${v(k.datum)} | Alcohol: ${alc(k.datum)}
+  Dag voordien (${fmt(d1)}): ${v(fmt(d1))} | Alcohol: ${alc(fmt(d1))}
+  2 dagen voordien (${fmt(d2)}): ${v(fmt(d2))} | Alcohol: ${alc(fmt(d2))}`;
+  }).join('\n\n')||'Nog geen data.';
+  try{
+    const resp=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
+      model:'claude-sonnet-4-20250514',max_tokens:1000,
+      system:`Je bent een voedingspatroon-analist gespecialiseerd in spijsverteringsproblemen. Analyseer het dagboek. Koppel klachten aan voeding én alcohol van dag zelf, dag voordien en 2 dagen voordien. Vermeld Bristol-stoelgangschaal waar relevant. Schrijf in vloeiend Nederlands, geen markdown, geen sterretjes. Korte alinea's. Concreet en praktisch.`,
+      messages:[{role:'user',content:`Analyseer:\n\n${ctx}`}]
+    })});
+    const data=await resp.json();
+    const text=data.content?.find(b=>b.type==='text')?.text||'Geen resultaat.';
+    ai.innerHTML=`<div class="ai-body">${text.split('\n').filter(l=>l.trim()).map(l=>`<p>${l}</p>`).join('')}</div>
+      <button class="btn-sec" style="margin-top:12px" onclick="runAnalyse()"><i class="ti ti-refresh"></i> Heranalyseer</button>`;
+  }catch(e){
+    ai.innerHTML=`<p style="font-size:14px;color:#A32D2D">Fout: ${e.message}</p><button class="btn-sec" style="margin-top:8px" onclick="runAnalyse()">Opnieuw</button>`;
   }
 }
 
-// Service worker
-if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('./sw.js').catch(() => {});
+// ── Export ────────────────────────────────────────────────────────────────────
+function exportExcel(){
+  const wb=XLSX.utils.book_new();
+  function addSheet(name,rows,widths){
+    const ws=XLSX.utils.aoa_to_sheet(rows);
+    ws['!cols']=widths.map(w=>({wch:w}));
+    for(let c=0;c<rows[0].length;c++){
+      const ref=XLSX.utils.encode_cell({r:0,c});
+      if(ws[ref]) ws[ref].s={font:{bold:true,color:{rgb:'FFFFFF'}},fill:{fgColor:{rgb:'1D9E75'}}};
+    }
+    XLSX.utils.book_append_sheet(wb,ws,name);
+  }
+  addSheet('Maaltijden',[['Datum','Moment','Inhoud','Context'],...maaltijden.map(m=>[m.datum,m.moment,m.inhoud,m.context||''])],[12,14,50,30]);
+  addSheet('Alcohol',[['Datum','Type','Eenheden','Tijdstip','Notitie'],...alcohol.map(a=>[a.datum,a.type,a.eenheden,a.tijdstip,a.notitie||''])],[12,14,10,16,30]);
+  addSheet('Klachten',[['Datum','Klachten','Ernst (1-5)','Bristol','Notitie'],...klachten.map(k=>[k.datum,getSymArr(k).join(', '),k.ernst||'',k.bristol!=null?k.bristol===0?'Geen':`Type ${k.bristol}`:'',k.notitie||''])],[12,40,12,14,30]);
+  const all=[...new Set([...maaltijden.map(m=>m.datum),...klachten.map(k=>k.datum),...alcohol.map(a=>a.datum)])].sort();
+  const oRows=[['Datum','Maaltijden','Alcohol (eenheden)','Klachten','Ernst','Bristol','Notitie']];
+  all.forEach(d=>{
+    const dagM=maaltijden.filter(m=>m.datum===d).map(m=>`[${m.moment}] ${m.inhoud}`).join(' | ');
+    const dagA=alcohol.find(a=>a.datum===d);
+    const dagK=klachten.find(k=>k.datum===d);
+    oRows.push([d,dagM||'',dagA?`${dagA.eenheden} (${dagA.type})`:'0',dagK?getSymArr(dagK).join(', '):'',dagK?dagK.ernst||'':'',dagK&&dagK.bristol!=null?dagK.bristol===0?'Geen':`Type ${dagK.bristol}`:'',dagK?dagK.notitie||'':'']);
+  });
+  addSheet('Overzicht per dag',oRows,[12,60,18,40,10,12,30]);
+  XLSX.writeFile(wb,`voedingsdagboek_${today()}.xlsx`);
+  toast('✓ Excel gedownload');
 }
+
+function exportJSON(){
+  const blob=new Blob([JSON.stringify({maaltijden,klachten,alcohol,favorieten},null,2)],{type:'application/json'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');a.href=url;a.download=`vdb_backup_${today()}.json`;a.click();URL.revokeObjectURL(url);
+  toast('✓ Backup gedownload');
+}
+function importJSON(e){
+  const file=e.target.files[0];if(!file)return;
+  const r=new FileReader();
+  r.onload=ev=>{
+    try{
+      const d=JSON.parse(ev.target.result);
+      if(!confirm(`Backup importeren? (${(d.maaltijden||[]).length} maaltijden, ${(d.klachten||[]).length} klachtdagen)`)) return;
+      maaltijden=d.maaltijden||[];klachten=d.klachten||[];alcohol=d.alcohol||[];favorieten=d.favorieten||[];
+      saveLocal();renderFavSuggesties();toast('✓ Backup hersteld');
+    }catch(){ toast('Fout: ongeldig bestand.'); }
+  };
+  r.readAsText(file);e.target.value='';
+}
+
+// ── Supabase setup UI ─────────────────────────────────────────────────────────
+function renderSupabaseSetup(){
+  const el=document.getElementById('supabase-setup');
+  if(SB_URL&&SB_KEY){
+    el.innerHTML=`
+      <div class="connected-bar">
+        <i class="ti ti-cloud-check"></i>
+        <span>Verbonden met Supabase</span>
+      </div>
+      <div style="display:flex;gap:8px;">
+        <button class="btn-sec" onclick="sbSync()" style="flex:1;justify-content:center"><i class="ti ti-refresh"></i> Nu synchroniseren</button>
+        <button class="btn-sec" onclick="sbDisconnect()" style="color:#A32D2D;border-color:#A32D2D;flex-shrink:0"><i class="ti ti-unlink"></i> Ontkoppelen</button>
+      </div>`;
+    return;
+  }
+  el.innerHTML=`
+    <div class="setup-card">
+      <div class="setup-step"><div class="step-num">1</div><div class="step-text">Ga naar <a href="https://supabase.com" target="_blank">supabase.com</a> → maak gratis account → nieuw project (kies regio <strong>West Europe</strong>).</div></div>
+      <div class="setup-step"><div class="step-num">2</div><div class="step-text">Ga in je project naar <strong>SQL Editor</strong> en plak dit en klik Run:<br><br>
+        <code style="font-size:11px;background:var(--bg3);padding:8px;border-radius:6px;display:block;line-height:1.6;white-space:pre-wrap">CREATE TABLE maaltijden (id text primary key, datum text, moment text, inhoud text, context text);
+CREATE TABLE klachten (id text primary key, datum text, symptomen text, ernst int, bristol int, notitie text);
+CREATE TABLE alcohol (id text primary key, datum text, type text, eenheden numeric, tijdstip text, notitie text);
+CREATE TABLE favorieten (id text primary key, naam text, inhoud text, moment text);
+ALTER TABLE maaltijden ENABLE ROW LEVEL SECURITY;
+ALTER TABLE klachten ENABLE ROW LEVEL SECURITY;
+ALTER TABLE alcohol ENABLE ROW LEVEL SECURITY;
+ALTER TABLE favorieten ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "open" ON maaltijden FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "open" ON klachten FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "open" ON alcohol FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "open" ON favorieten FOR ALL USING (true) WITH CHECK (true);</code></div></div>
+      <div class="setup-step"><div class="step-num">3</div><div class="step-text">Ga naar <strong>Project Settings → API</strong>. Kopieer de <strong>Project URL</strong> en de <strong>anon public key</strong>.</div></div>
+      <div class="setup-step"><div class="step-num">4</div><div class="step-text">Plak ze hieronder:</div></div>
+    </div>
+    <label class="lbl">Project URL</label>
+    <input type="text" id="sb-url-inp" placeholder="https://xxxxx.supabase.co" />
+    <label class="lbl">Anon public key</label>
+    <input type="password" id="sb-key-inp" placeholder="eyJhbGciOi..." />
+    <button class="btn-primary" onclick="sbVerbind()"><i class="ti ti-cloud-upload"></i> Verbinden &amp; synchroniseren</button>`;
+}
+
+async function sbVerbind(){
+  const url=document.getElementById('sb-url-inp').value.trim().replace(/\/$/,'');
+  const key=document.getElementById('sb-key-inp').value.trim();
+  if(!url||!key){ toast('Vul URL én key in.'); return; }
+  SB_URL=url; SB_KEY=key;
+  localStorage.setItem('sb_url',SB_URL);
+  localStorage.setItem('sb_key',SB_KEY);
+  toast('Verbinden...');
+  await sbSync();
+  renderSupabaseSetup();
+}
+
+function sbDisconnect(){
+  if(!confirm('Ontkoppelen van Supabase? Lokale data blijft bewaard.')) return;
+  SB_URL=''; SB_KEY='';
+  localStorage.removeItem('sb_url');
+  localStorage.removeItem('sb_key');
+  setBadge('offline');
+  renderSupabaseSetup();
+}
+
+if('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js').catch(()=>{});
 </script>
 </body>
 </html>
