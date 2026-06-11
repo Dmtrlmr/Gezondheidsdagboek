@@ -894,7 +894,14 @@ function renderDagboek() {
 
     dm.forEach(m => {
       h += `<div class="card">
-        <div class="ch"><span class="ct">🍴 ${m.moment}</span><span class="bdg bdg-x">maaltijd</span></div>
+        <div class="ch">
+          <span class="ct">🍴 ${m.moment}</span>
+          <div style="display:flex;align-items:center;gap:5px;">
+            <span class="bdg bdg-x">maaltijd</span>
+            <button class="btnS" style="padding:3px 8px;font-size:12px;" onclick="bewerkMaaltijd('${m.id}')">✏️</button>
+            <button class="btnS" style="padding:3px 8px;font-size:12px;color:#A32D2D;border-color:#A32D2D;" onclick="verwijderMaaltijd('${m.id}')">🗑</button>
+          </div>
+        </div>
         <div style="font-size:14px">${m.inhoud}</div>
         ${m.context ? `<div class="cm">${m.context}</div>` : ''}
       </div>`;
@@ -910,7 +917,14 @@ function renderDagboek() {
         ? dk.bristol === 0 ? 'Geen stoelgang' : `Bristol type ${dk.bristol}`
         : '';
       h += `<div class="card" style="border-left:3px solid ${lrand}">
-        <div class="ch"><span class="ct">⚡ Klachten</span><span class="bdg ${kleur}">${tekst}</span></div>
+        <div class="ch">
+          <span class="ct">⚡ Klachten</span>
+          <div style="display:flex;align-items:center;gap:5px;">
+            <span class="bdg ${kleur}">${tekst}</span>
+            <button class="btnS" style="padding:3px 8px;font-size:12px;" onclick="bewerkKlachten('${dk.datum}')">✏️</button>
+            <button class="btnS" style="padding:3px 8px;font-size:12px;color:#A32D2D;border-color:#A32D2D;" onclick="verwijderKlachten('${dk.id}')">🗑</button>
+          </div>
+        </div>
         ${!geen ? `<div style="margin:4px 0">${ss.map(s => `<span class="pil">${s}</span>`).join('')}</div>` : ''}
         ${brl ? `<div class="cm">${brl}</div>` : ''}
         ${dk.notitie ? `<div class="cm">${dk.notitie}</div>` : ''}
@@ -918,6 +932,83 @@ function renderDagboek() {
     }
     return h;
   }).join('');
+}
+
+// ═══════════════════════════════════════════════════════
+// BEWERKEN & VERWIJDEREN
+// ═══════════════════════════════════════════════════════
+function bewerkMaaltijd(id) {
+  const m = M.find(x => x.id === id);
+  if (!m) return;
+  // Navigeer naar maaltijdpagina en vul in
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nb').forEach(b => b.classList.remove('active'));
+  document.getElementById('p-maaltijd').classList.add('active');
+  document.querySelector('.nb').classList.add('active');
+  document.getElementById('pages').scrollTop = 0;
+  document.getElementById('m-datum').value = m.datum;
+  document.getElementById('m-moment').value = m.moment;
+  document.getElementById('m-inhoud').value = m.inhoud;
+  document.getElementById('m-ctx').value = m.context || '';
+  // Verwijder de oude entry zodat opslaan hem vervangt
+  M = M.filter(x => x.id !== id);
+  opslaan();
+  if (SU && SK) sbFetch('maaltijden?id=eq.' + id, 'DELETE');
+  toast('Maaltijd geladen — pas aan en sla opnieuw op');
+}
+
+async function verwijderMaaltijd(id) {
+  if (!confirm('Maaltijd verwijderen?')) return;
+  M = M.filter(x => x.id !== id);
+  opslaan();
+  if (SU && SK) await sbFetch('maaltijden?id=eq.' + id, 'DELETE');
+  renderDagboek();
+  toast('✓ Maaltijd verwijderd');
+}
+
+function bewerkKlachten(datum) {
+  const k = K.find(x => x.datum === datum);
+  if (!k) return;
+  // Navigeer naar klachtenpagina en vul in
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nb').forEach(b => b.classList.remove('active'));
+  document.getElementById('p-klachten').classList.add('active');
+  document.querySelectorAll('.nb')[1].classList.add('active');
+  document.getElementById('pages').scrollTop = 0;
+  document.getElementById('k-datum').value = k.datum;
+  document.getElementById('k-nota').value = k.notitie || '';
+  // Herstel symptomen
+  selSym = getSyms(k);
+  document.querySelectorAll('.tg').forEach(btn => {
+    const naam = btn.textContent.trim().replace(/^[^ ]+ /, '');
+    const match = selSym.some(s => btn.textContent.includes(s));
+    btn.classList.toggle('aan', match);
+  });
+  // Herstel ernst
+  selErnst = k.ernst || 0;
+  document.querySelectorAll('.eg').forEach((b, i) => b.classList.toggle('aan', i + 1 === selErnst));
+  // Herstel bristol
+  selBristol = k.bristol;
+  document.querySelectorAll('.bb').forEach(b => b.classList.remove('aan'));
+  if (k.bristol != null) {
+    const bbs = document.querySelectorAll('.bb');
+    const idx = k.bristol === 0 ? 7 : k.bristol - 1;
+    if (bbs[idx]) bbs[idx].classList.add('aan');
+  }
+  // Verwijder de oude entry
+  K = K.filter(x => x.datum !== datum);
+  opslaan();
+  if (SU && SK) sbFetch('klachten?id=eq.' + k.id, 'DELETE');
+  toast('Klachten geladen — pas aan en sla opnieuw op');
+}
+
+async function verwijderKlachten(id) {
+  if (!confirm('Klachtenregistratie verwijderen?')) return;
+  K = K.filter(x => x.id !== id);
+  opslaan();
+  if (SU && SK) await sbFetch('klachten?id=eq.' + id, 'DELETE');
+  renderDagboek();
+  toast('✓ Klachten verwijderd');
 }
 
 // ═══════════════════════════════════════════════════════
