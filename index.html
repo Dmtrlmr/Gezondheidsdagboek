@@ -489,18 +489,43 @@ input:focus, select:focus, textarea:focus {
         </div>
         <div>
           <label class="lbl" for="m-moment">Moment</label>
-          <select id="m-moment">
+          <select id="m-moment" onchange="toggleAlcVak()">
             <option>Ontbijt</option>
+            <option>Tussendoortje ochtend</option>
             <option>Lunch</option>
+            <option>Tussendoortje namiddag</option>
             <option>Avondmaal</option>
-            <option>Tussendoortje</option>
-            <option>Snack</option>
+            <option>Avondsnack</option>
+            <option>Alcohol</option>
           </select>
         </div>
       </div>
 
-      <label class="lbl" for="m-inhoud">Wat at / dronk je?</label>
+      <label class="lbl" for="m-inhoud" id="m-inhoud-lbl">Wat at / dronk je?</label>
       <textarea id="m-inhoud" placeholder="Bijv. havermout met amandelmelk, skyr met fruit, koffie met volle melk..."></textarea>
+
+      <!-- Alcohol extra velden -->
+      <div id="alc-vak" style="display:none; margin-top:12px;">
+        <div class="hint" style="margin-bottom:10px;">🍷 1 eenheid = 10g alcohol — glas wijn ≈ 1,5 / pintje ≈ 1,5 / borrel ≈ 1</div>
+        <label class="lbl">Type drank</label>
+        <div class="tgrid3" id="alc-type-grid">
+          <button class="tg" onclick="kiesAlcType(this,'Wijn')">🍷 Wijn</button>
+          <button class="tg" onclick="kiesAlcType(this,'Bier')">🍺 Bier</button>
+          <button class="tg" onclick="kiesAlcType(this,'Gedistilleerd')">🥃 Spirit</button>
+          <button class="tg" onclick="kiesAlcType(this,'Champagne')">🥂 Bubbels</button>
+          <button class="tg" onclick="kiesAlcType(this,'Cocktail')">🍹 Cocktail</button>
+          <button class="tg" onclick="kiesAlcType(this,'Andere')">🫗 Andere</button>
+        </div>
+        <label class="lbl" for="alc-een">Aantal eenheden</label>
+        <input type="number" id="alc-een" min="0" max="20" step="0.5" placeholder="bijv. 2">
+        <label class="lbl" for="alc-tijdstip">Tijdstip</label>
+        <select id="alc-tijdstip">
+          <option>Aperitief</option>
+          <option>Bij het eten</option>
+          <option>Na het eten</option>
+          <option>Avond / nacht</option>
+        </select>
+      </div>
 
       <div id="fav-vak" style="display:none; margin-top:10px;">
         <div style="font-size:12px;color:var(--muted);margin-bottom:5px;">Favorieten — tik om in te vullen:</div>
@@ -813,13 +838,55 @@ async function verwijderFav(i) {
 // ═══════════════════════════════════════════════════════
 // OPSLAAN
 // ═══════════════════════════════════════════════════════
+let selAlcType = null;
+
+function kiesAlcType(btn, type) {
+  document.querySelectorAll('#alc-type-grid .tg').forEach(b => b.classList.remove('aan'));
+  btn.classList.add('aan');
+  selAlcType = type;
+  // Vul inhoud-veld automatisch in
+  const een = document.getElementById('alc-een').value;
+  document.getElementById('m-inhoud').value = type + (een ? ' — ' + een + ' eenheden' : '');
+}
+
+function toggleAlcVak() {
+  const isAlc = document.getElementById('m-moment').value === 'Alcohol';
+  document.getElementById('alc-vak').style.display = isAlc ? 'block' : 'none';
+  document.getElementById('fav-vak').style.display = (!isAlc && F.length) ? 'block' : 'none';
+  document.getElementById('m-inhoud-lbl').textContent = isAlc ? 'Notitie (optioneel)' : 'Wat at / dronk je?';
+  if (!isAlc) { selAlcType = null; document.querySelectorAll('#alc-type-grid .tg').forEach(b => b.classList.remove('aan')); }
+}
+
+// Auto-update inhoud als eenheden veranderen
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('alc-een').addEventListener('input', () => {
+    if (selAlcType) {
+      const een = document.getElementById('alc-een').value;
+      document.getElementById('m-inhoud').value = selAlcType + (een ? ' — ' + een + ' eenheden' : '');
+    }
+  });
+});
+
 async function bewaarMaaltijd() {
-  const inhoud = document.getElementById('m-inhoud').value.trim();
-  if (!inhoud) { toast('Vul in wat je at of dronk.'); return; }
+  const moment = document.getElementById('m-moment').value;
+  const isAlc = moment === 'Alcohol';
+
+  // Voor alcohol: bouw inhoud samen uit type + eenheden + tijdstip
+  let inhoud;
+  if (isAlc) {
+    if (!selAlcType) { toast('Selecteer type drank.'); return; }
+    const een = parseFloat(document.getElementById('alc-een').value) || 0;
+    const tijdstip = document.getElementById('alc-tijdstip').value;
+    inhoud = `${selAlcType} — ${een} eenheden — ${tijdstip}`;
+  } else {
+    inhoud = document.getElementById('m-inhoud').value.trim();
+    if (!inhoud) { toast('Vul in wat je at of dronk.'); return; }
+  }
+
   const rij = {
     id: 'm' + Date.now(),
     datum: document.getElementById('m-datum').value,
-    moment: document.getElementById('m-moment').value,
+    moment: moment,
     inhoud: inhoud,
     context: document.getElementById('m-ctx').value.trim()
   };
@@ -827,8 +894,13 @@ async function bewaarMaaltijd() {
   opslaan();
   document.getElementById('m-inhoud').value = '';
   document.getElementById('m-ctx').value = '';
+  document.getElementById('alc-een').value = '';
+  document.getElementById('alc-tijdstip').selectedIndex = 0;
+  document.getElementById('m-moment').selectedIndex = 0;
+  toggleAlcVak();
+  selAlcType = null;
   await sbUpsert('maaltijden', rij);
-  toast('✓ Maaltijd opgeslagen');
+  toast('✓ ' + (isAlc ? 'Alcohol' : 'Maaltijd') + ' opgeslagen');
 }
 
 async function bewaarKlachten() {
@@ -884,7 +956,7 @@ function renderDagboek() {
     return;
   }
 
-  const volgorde = ['Ontbijt', 'Tussendoortje', 'Lunch', 'Avondmaal', 'Snack'];
+  const volgorde = ['Ontbijt', 'Tussendoortje ochtend', 'Lunch', 'Tussendoortje namiddag', 'Avondmaal', 'Avondsnack', 'Alcohol'];
   el.innerHTML = datums.map(d => {
     const dm = M.filter(m => m.datum === d).sort((a, b) =>
       volgorde.indexOf(a.moment) - volgorde.indexOf(b.moment)
@@ -893,9 +965,10 @@ function renderDagboek() {
     let h = `<div class="dkop">${fmtDatum(d)}</div>`;
 
     dm.forEach(m => {
-      h += `<div class="card">
+      const isAlcCard = m.moment === 'Alcohol';
+      h += `<div class="card"${isAlcCard ? ' style="border-left:3px solid #534AB7"' : ''}>
         <div class="ch">
-          <span class="ct">🍴 ${m.moment}</span>
+          <span class="ct">${isAlcCard ? '🍷' : '🍴'} ${m.moment}</span>
           <div style="display:flex;align-items:center;gap:5px;">
             <span class="bdg bdg-x">maaltijd</span>
             <button class="btnS" style="padding:3px 8px;font-size:12px;" onclick="bewerkMaaltijd('${m.id}')">✏️</button>
