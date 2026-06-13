@@ -508,23 +508,24 @@ input:focus, select:focus, textarea:focus {
       <div id="alc-vak" style="display:none; margin-top:12px;">
         <div class="hint" style="margin-bottom:10px;">🍷 1 eenheid = 10g alcohol — glas wijn ≈ 1,5 / pintje ≈ 1,5 / borrel ≈ 1</div>
         <label class="lbl">Type drank</label>
-        <div class="tgrid3" id="alc-type-grid">
-          <button class="tg" onclick="kiesAlcType(this,'Wijn')">🍷 Wijn</button>
-          <button class="tg" onclick="kiesAlcType(this,'Bier')">🍺 Bier</button>
-          <button class="tg" onclick="kiesAlcType(this,'Gedistilleerd')">🥃 Spirit</button>
-          <button class="tg" onclick="kiesAlcType(this,'Champagne')">🥂 Bubbels</button>
-          <button class="tg" onclick="kiesAlcType(this,'Cocktail')">🍹 Cocktail</button>
-          <button class="tg" onclick="kiesAlcType(this,'Andere')">🫗 Andere</button>
+        <div class="tgrid" id="alc-type-grid">
+          <button class="tg" onclick="kiesAlcType(this,'Gin-Tonic',2)">🍸 Gin-Tonic <small style="color:var(--muted)">(2 eenh.)</small></button>
+          <button class="tg" onclick="kiesAlcType(this,'Pintje',1)">🍺 Pintje <small style="color:var(--muted)">(1 eenh.)</small></button>
+          <button class="tg" onclick="kiesAlcType(this,'Glas wijn',1)">🍷 Glas wijn <small style="color:var(--muted)">(1 eenh.)</small></button>
+          <button class="tg" onclick="kiesAlcType(this,'Cava',1)">🥂 Cava <small style="color:var(--muted)">(1 eenh.)</small></button>
+          <button class="tg" onclick="kiesAlcType(this,'Zwaarder bier',2)">🍺 Zwaarder bier <small style="color:var(--muted)">(2 eenh.)</small></button>
+          <button class="tg" onclick="kiesAlcType(this,'Andere',1)">🫗 Andere</button>
         </div>
-        <label class="lbl" for="alc-een">Aantal eenheden</label>
-        <input type="number" id="alc-een" min="0" max="20" step="0.5" placeholder="bijv. 2">
-        <label class="lbl" for="alc-tijdstip">Tijdstip</label>
-        <select id="alc-tijdstip">
-          <option>Aperitief</option>
-          <option>Bij het eten</option>
-          <option>Na het eten</option>
-          <option>Avond / nacht</option>
-        </select>
+        <div class="r2" style="margin-top:10px;">
+          <div>
+            <label class="lbl" for="alc-glazen">Aantal glazen</label>
+            <input type="number" id="alc-glazen" min="1" max="20" step="1" value="1">
+          </div>
+          <div>
+            <label class="lbl" for="alc-een-toon">Eenheden (berekend)</label>
+            <input type="text" id="alc-een-toon" readonly style="color:var(--muted);" placeholder="—">
+          </div>
+        </div>
       </div>
 
       <div id="fav-vak" style="display:none; margin-top:10px;">
@@ -840,13 +841,24 @@ async function verwijderFav(i) {
 // ═══════════════════════════════════════════════════════
 let selAlcType = null;
 
-function kiesAlcType(btn, type) {
+let eenPerGlas = 1;
+
+function kiesAlcType(btn, type, eph) {
   document.querySelectorAll('#alc-type-grid .tg').forEach(b => b.classList.remove('aan'));
   btn.classList.add('aan');
   selAlcType = type;
-  // Vul inhoud-veld automatisch in
-  const een = document.getElementById('alc-een').value;
-  document.getElementById('m-inhoud').value = type + (een ? ' — ' + een + ' eenheden' : '');
+  eenPerGlas = eph || 1;
+  berekenEenheden();
+}
+
+function berekenEenheden() {
+  const glazen = parseInt(document.getElementById('alc-glazen').value) || 1;
+  const totaal = glazen * eenPerGlas;
+  document.getElementById('alc-een-toon').value = totaal + ' eenheden';
+  if (selAlcType) {
+    const label = glazen === 1 ? selAlcType : `${glazen}x ${selAlcType}`;
+    document.getElementById('m-inhoud').value = label + ' — ' + totaal + ' eenheden';
+  }
 }
 
 function toggleAlcVak() {
@@ -859,12 +871,7 @@ function toggleAlcVak() {
 
 // Auto-update inhoud als eenheden veranderen
 document.addEventListener('DOMContentLoaded', () => {
-  document.getElementById('alc-een').addEventListener('input', () => {
-    if (selAlcType) {
-      const een = document.getElementById('alc-een').value;
-      document.getElementById('m-inhoud').value = selAlcType + (een ? ' — ' + een + ' eenheden' : '');
-    }
-  });
+  document.getElementById('alc-glazen').addEventListener('input', berekenEenheden);
 });
 
 async function bewaarMaaltijd() {
@@ -875,9 +882,10 @@ async function bewaarMaaltijd() {
   let inhoud;
   if (isAlc) {
     if (!selAlcType) { toast('Selecteer type drank.'); return; }
-    const een = parseFloat(document.getElementById('alc-een').value) || 0;
-    const tijdstip = document.getElementById('alc-tijdstip').value;
-    inhoud = `${selAlcType} — ${een} eenheden — ${tijdstip}`;
+    const glazen = parseInt(document.getElementById('alc-glazen').value) || 1;
+    const totaalEen = glazen * eenPerGlas;
+    const label = glazen === 1 ? selAlcType : `${glazen}x ${selAlcType}`;
+    inhoud = `${label} — ${totaalEen} eenheden`;
   } else {
     inhoud = document.getElementById('m-inhoud').value.trim();
     if (!inhoud) { toast('Vul in wat je at of dronk.'); return; }
@@ -894,8 +902,8 @@ async function bewaarMaaltijd() {
   opslaan();
   document.getElementById('m-inhoud').value = '';
   document.getElementById('m-ctx').value = '';
-  document.getElementById('alc-een').value = '';
-  document.getElementById('alc-tijdstip').selectedIndex = 0;
+  document.getElementById('alc-glazen').value = '1';
+  document.getElementById('alc-een-toon').value = '';
   document.getElementById('m-moment').selectedIndex = 0;
   toggleAlcVak();
   selAlcType = null;
